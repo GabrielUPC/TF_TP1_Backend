@@ -290,7 +290,7 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
                 totalFilasLeidas,
                 registrosValidos.size(),
                 errores,
-                "Archivo cargado, validado y procesado correctamente."
+                "Archivo cargado, validado, procesado y reporte generado correctamente."
         );
     }
 
