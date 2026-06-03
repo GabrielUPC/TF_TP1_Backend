@@ -1,5 +1,5 @@
 package pe.edu.upc.tf_tp1_backend.ServiceImplements;
-import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IReporteInterfaces;
+
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +22,7 @@ import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IExcelHospitalarioInterfaces;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IIndicadorHospitalarioInterfaces;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IPrediccionRiesgoInterfaces;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IReporteInterfaces;
+
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -31,9 +32,6 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
 
     @Autowired
     private IArchivoCargadoRepository aR;
-
-    @Autowired
-    private IReporteInterfaces reporteService;
 
     @Autowired
     private IRegistroHospitalarioRepository rR;
@@ -50,6 +48,8 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
     @Autowired
     private IPrediccionRiesgoInterfaces prediccionService;
 
+    @Autowired
+    private IReporteInterfaces reporteService;
 
     private static final List<String> COLUMNAS_REQUERIDAS = Arrays.asList(
             "codigo_renipress",
@@ -70,7 +70,6 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
         try (Workbook workbook = new XSSFWorkbook()) {
 
             Sheet hoja = workbook.createSheet("hospitalizacion");
-
             Row cabecera = hoja.createRow(0);
 
             CellStyle estiloCabecera = workbook.createCellStyle();
@@ -82,7 +81,6 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
                 Cell cell = cabecera.createCell(i);
                 cell.setCellValue(COLUMNAS_REQUERIDAS.get(i));
                 cell.setCellStyle(estiloCabecera);
-                hoja.autoSizeColumn(i);
             }
 
             Row ejemplo = hoja.createRow(1);
@@ -166,15 +164,12 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
                         "El archivo no contiene una hoja válida.",
                         "Verifique que el Excel tenga una hoja con datos.");
             } else {
-
                 Row filaCabecera = hoja.getRow(0);
-
                 Map<String, Integer> columnas = obtenerColumnas(filaCabecera);
 
                 validarColumnasObligatorias(columnas, errores);
 
                 if (errores.isEmpty()) {
-
                     for (int i = 1; i <= hoja.getLastRowNum(); i++) {
 
                         Row fila = hoja.getRow(i);
@@ -184,7 +179,6 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
                         }
 
                         totalFilasLeidas++;
-
                         int numeroFilaExcel = i + 1;
 
                         String codigoRenipress = obtenerTexto(fila, columnas.get("codigo_renipress"));
@@ -216,7 +210,7 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
                         );
 
                         boolean filaConError = errores.stream()
-                                .anyMatch(e -> e.getFila().equals(numeroFilaExcel));
+                                .anyMatch(e -> Objects.equals(e.getFila(), numeroFilaExcel));
 
                         if (!filaConError) {
                             RegistroHospitalario registro = new RegistroHospitalario();
@@ -290,7 +284,7 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
                 totalFilasLeidas,
                 registrosValidos.size(),
                 errores,
-                "Archivo cargado, validado y procesado correctamente."
+                "Archivo cargado, validado, procesado y reporte generado correctamente."
         );
     }
 
@@ -392,7 +386,10 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
         }
 
         if (codigoRenipress != null && anio != null && mes != null && servicioHospitalario != null) {
-            String clave = codigoRenipress.trim().toLowerCase() + "|" + anio + "|" + mes + "|" + servicioHospitalario.trim().toLowerCase();
+            String clave = codigoRenipress.trim().toLowerCase()
+                    + "|" + anio
+                    + "|" + mes
+                    + "|" + servicioHospitalario.trim().toLowerCase();
 
             if (clavesDuplicadas.contains(clave)) {
                 agregarError(errores, fila, "registro", "DUPLICADO",
@@ -477,7 +474,6 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
         }
 
         DataFormatter formatter = new DataFormatter();
-
         String valor = formatter.formatCellValue(cell);
 
         if (valor == null) {
