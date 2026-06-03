@@ -1,51 +1,15 @@
-package pe.edu.upc.tf_tp1_backend.Entities;
+package pe.edu.upc.tf_tp1_backend.DTOS;
 
-import jakarta.persistence.*;
-import java.io.Serializable;
+public class IpressDTO {
 
-@Entity
-@Table(name = "ipress")
-public class Ipress implements Serializable {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_ipress")
     private Long idIpress;
-
-    @Column(name = "codigo_renipress", nullable = false, unique = true, length = 30)
     private String codigoRenipress;
-
-    @Column(name = "nombre_ipress", nullable = false, length = 150)
     private String nombreIpress;
-
-    @Column(name = "categoria_ipress", length = 20)
     private String categoriaIpress;
-
-    @Column(name = "codigo_ubigeo", length = 10)
     private String codigoUbigeo;
-
-    @Column(name = "distrito", length = 80)
     private String distrito;
-
-    @Column(name = "provincia", length = 80)
     private String provincia;
-
-    @Column(name = "departamento", length = 80)
     private String departamento;
-
-    public Ipress() {
-    }
-
-    public Ipress(Long idIpress, String codigoRenipress, String nombreIpress, String categoriaIpress, String codigoUbigeo, String distrito, String provincia, String departamento) {
-        this.idIpress = idIpress;
-        this.codigoRenipress = codigoRenipress;
-        this.nombreIpress = nombreIpress;
-        this.categoriaIpress = categoriaIpress;
-        this.codigoUbigeo = codigoUbigeo;
-        this.distrito = distrito;
-        this.provincia = provincia;
-        this.departamento = departamento;
-    }
 
     public Long getIdIpress() {
         return idIpress;
