@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/archivos")
+@CrossOrigin(origins = "http://localhost:4200")
 public class ArchivoCargadoController {
 
     @Autowired
