@@ -128,9 +128,4 @@ public class UsuarioController {
 
         usuarioService.modificar(usuario);
     }
-
-    @DeleteMapping("/{id}")
-    public void eliminar(@PathVariable("id") Long id) {
-        usuarioService.eliminar(id);
-    }
 }

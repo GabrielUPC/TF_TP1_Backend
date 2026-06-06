@@ -34,12 +34,7 @@ public class UsuarioServiceImplements implements IUsuarioInterfaces {
     public void modificar(Usuario usuario) {
         usuarioRepository.save(usuario);
     }
-
-    @Override
-    public void eliminar(Long id) {
-        usuarioRepository.deleteById(id);
-    }
-
+    
     @Override
     public Optional<Usuario> buscarPorCorreo(String correo) {
         return usuarioRepository.findByCorreo(correo);

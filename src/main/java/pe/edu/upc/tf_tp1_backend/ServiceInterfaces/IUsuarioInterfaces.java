@@ -12,7 +12,5 @@ public interface IUsuarioInterfaces {
 
     public void modificar(Usuario usuario);
 
-    public void eliminar(Long id);
-
     public Optional<Usuario> buscarPorCorreo(String correo);
 }
