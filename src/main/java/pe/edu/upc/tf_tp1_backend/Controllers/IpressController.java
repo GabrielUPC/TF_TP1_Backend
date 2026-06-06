@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/ipress")
+@CrossOrigin(origins = "http://localhost:4200")
 public class IpressController {
 
     @Autowired
