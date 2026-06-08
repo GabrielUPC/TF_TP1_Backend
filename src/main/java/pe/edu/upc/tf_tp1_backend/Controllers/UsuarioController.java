@@ -14,7 +14,9 @@ import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IUsuarioInterfaces;
 
 import java.util.List;
 import java.util.stream.Collectors;
-
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/usuarios")
 @CrossOrigin(origins = "http://localhost:4200")
@@ -104,8 +106,22 @@ public class UsuarioController {
     }
 
     @PutMapping
-    public void modificar(@RequestBody UsuarioDTO dto) {
+    public void modificar(@RequestBody UsuarioDTO dto, Authentication authentication) {
         Usuario usuario = usuarioService.listId(dto.getIdUsuario());
+
+        Usuario usuarioAutenticado = usuarioService.buscarPorCorreo(authentication.getName())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Usuario autenticado no encontrado"
+                ));
+
+        if (usuarioAutenticado.getIdUsuario().equals(dto.getIdUsuario())
+                && Boolean.FALSE.equals(dto.getEstado())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "No puedes inactivar tu propio usuario"
+            );
+        }
 
         usuario.setNombre(dto.getNombre());
         usuario.setCorreo(dto.getCorreo());
@@ -129,7 +145,21 @@ public class UsuarioController {
         usuarioService.modificar(usuario);
     }
     @PutMapping("/{id}/inactivar")
-    public void inactivar(@PathVariable("id") Long id) {
+    public void inactivar(@PathVariable("id") Long id, Authentication authentication) {
+
+        Usuario usuarioAutenticado = usuarioService.buscarPorCorreo(authentication.getName())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Usuario autenticado no encontrado"
+                ));
+
+        if (usuarioAutenticado.getIdUsuario().equals(id)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "No puedes inactivar tu propio usuario"
+            );
+        }
+
         Usuario usuario = usuarioService.listId(id);
         usuario.setEstado(false);
         usuarioService.modificar(usuario);
