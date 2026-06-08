@@ -27,9 +27,9 @@ public class UsuarioServiceImplements implements IUsuarioInterfaces {
 
     @Override
     public Usuario listId(Long id) {
-        return usuarioRepository.findById(id).orElse(new Usuario());
+        return usuarioRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
     }
-
     @Override
     public void modificar(Usuario usuario) {
         usuarioRepository.save(usuario);

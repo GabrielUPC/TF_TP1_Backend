@@ -128,4 +128,17 @@ public class UsuarioController {
 
         usuarioService.modificar(usuario);
     }
+    @PutMapping("/{id}/inactivar")
+    public void inactivar(@PathVariable("id") Long id) {
+        Usuario usuario = usuarioService.listId(id);
+        usuario.setEstado(false);
+        usuarioService.modificar(usuario);
+    }
+
+    @PutMapping("/{id}/activar")
+    public void activar(@PathVariable("id") Long id) {
+        Usuario usuario = usuarioService.listId(id);
+        usuario.setEstado(true);
+        usuarioService.modificar(usuario);
+    }
 }
