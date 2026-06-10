@@ -1,5 +1,4 @@
 package pe.edu.upc.tf_tp1_backend.ServiceImplements;
-import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IReporteInterfaces;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +27,8 @@ import java.util.*;
 
 @Service
 public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInterfaces {
+
+    private static final String ROL_ADMISION = "ADMISION_REGISTROS";
 
     @Autowired
     private IArchivoCargadoRepository aR;
@@ -116,7 +117,12 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
 
     @Override
     @Transactional
-    public ResumenCargaExcelDTO cargarValidarYProcesarExcel(MultipartFile archivo, Long idUsuario, Long idIpress) {
+    public ResumenCargaExcelDTO cargarValidarYProcesarExcel(
+            MultipartFile archivo,
+            Long idUsuario,
+            Long idIpress,
+            String correoUsuario
+    ) {
 
         if (archivo == null || archivo.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debe cargar un archivo Excel");
@@ -140,13 +146,16 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
                         "IPRESS no encontrada"
                 ));
 
+        Usuario usuarioAutenticado = obtenerUsuarioAutenticado(correoUsuario);
+        validarPermisoCarga(usuarioAutenticado, idUsuario, idIpress);
+
         ArchivoCargado archivoCargado = new ArchivoCargado();
         archivoCargado.setNombreArchivo(nombreArchivo);
         archivoCargado.setFormato("xlsx");
         archivoCargado.setFechaCarga(LocalDateTime.now());
         archivoCargado.setEstadoValidacion("PENDIENTE");
         archivoCargado.setEstadoProcesamiento("PENDIENTE");
-        archivoCargado.setUsuario(usuario);
+        archivoCargado.setUsuario(usuarioAutenticado);
         archivoCargado.setIpress(ipress);
 
         archivoCargado = aR.save(archivoCargado);
@@ -292,6 +301,47 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
                 errores,
                 "Archivo cargado, validado, procesado y reporte generado correctamente."
         );
+    }
+
+    private Usuario obtenerUsuarioAutenticado(String correoUsuario) {
+
+        if (correoUsuario == null || correoUsuario.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Usuario autenticado no encontrado"
+            );
+        }
+
+        return uR.findByCorreo(correoUsuario)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Usuario autenticado no encontrado"
+                ));
+    }
+
+    private void validarPermisoCarga(
+            Usuario usuarioAutenticado,
+            Long idUsuario,
+            Long idIpress
+    ) {
+
+        boolean mismoUsuario = usuarioAutenticado.getIdUsuario() != null
+                && usuarioAutenticado.getIdUsuario().equals(idUsuario);
+
+        boolean rolAdmision = usuarioAutenticado.getRol() != null
+                && usuarioAutenticado.getRol().getNombreRol() != null
+                && ROL_ADMISION.equalsIgnoreCase(usuarioAutenticado.getRol().getNombreRol());
+
+        boolean mismaIpress = usuarioAutenticado.getIpress() != null
+                && usuarioAutenticado.getIpress().getIdIpress() != null
+                && usuarioAutenticado.getIpress().getIdIpress().equals(idIpress);
+
+        if (!mismoUsuario || !rolAdmision || !mismaIpress) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "El usuario no tiene permiso para cargar informacion de esta IPRESS"
+            );
+        }
     }
 
     private Map<String, Integer> obtenerColumnas(Row filaCabecera) {

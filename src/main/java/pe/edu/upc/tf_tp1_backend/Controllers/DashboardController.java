@@ -1,6 +1,7 @@
 package pe.edu.upc.tf_tp1_backend.Controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.tf_tp1_backend.DTOS.DashboardDetalleDTO;
 import pe.edu.upc.tf_tp1_backend.DTOS.DashboardResumenDTO;
@@ -17,36 +18,43 @@ public class DashboardController {
     private IDashboardInterfaces dS;
 
     @GetMapping("/resumen")
-    public DashboardResumenDTO obtenerResumenGeneral() {
-        return dS.obtenerResumenGeneral();
+    public DashboardResumenDTO obtenerResumenGeneral(Authentication authentication) {
+        return dS.obtenerResumenGeneral(authentication.getName());
     }
 
     @GetMapping("/detalle")
-    public List<DashboardDetalleDTO> obtenerDetalleGeneral() {
-        return dS.obtenerDetalleGeneral();
+    public List<DashboardDetalleDTO> obtenerDetalleGeneral(Authentication authentication) {
+        return dS.obtenerDetalleGeneral(authentication.getName());
     }
 
     @GetMapping("/archivo/{idArchivo}")
-    public List<DashboardDetalleDTO> obtenerDetallePorArchivo(@PathVariable("idArchivo") Long idArchivo) {
-        return dS.obtenerDetallePorArchivo(idArchivo);
+    public List<DashboardDetalleDTO> obtenerDetallePorArchivo(
+            @PathVariable("idArchivo") Long idArchivo,
+            Authentication authentication
+    ) {
+        return dS.obtenerDetallePorArchivo(authentication.getName(), idArchivo);
     }
 
     @GetMapping("/riesgo/{nivelRiesgo}")
-    public List<DashboardDetalleDTO> obtenerDetallePorRiesgo(@PathVariable("nivelRiesgo") String nivelRiesgo) {
-        return dS.obtenerDetallePorRiesgo(nivelRiesgo);
+    public List<DashboardDetalleDTO> obtenerDetallePorRiesgo(
+            @PathVariable("nivelRiesgo") String nivelRiesgo,
+            Authentication authentication
+    ) {
+        return dS.obtenerDetallePorRiesgo(authentication.getName(), nivelRiesgo);
     }
 
     @GetMapping("/filtro")
     public List<DashboardDetalleDTO> filtrar(
             @RequestParam(value = "anio", required = false) Integer anio,
             @RequestParam(value = "mes", required = false) Integer mes,
-            @RequestParam(value = "servicioHospitalario", required = false) String servicioHospitalario
+            @RequestParam(value = "servicioHospitalario", required = false) String servicioHospitalario,
+            Authentication authentication
     ) {
-        return dS.filtrar(anio, mes, servicioHospitalario);
+        return dS.filtrar(authentication.getName(), anio, mes, servicioHospitalario);
     }
 
     @GetMapping("/alertas")
-    public List<DashboardDetalleDTO> obtenerAlertas() {
-        return dS.obtenerAlertas();
+    public List<DashboardDetalleDTO> obtenerAlertas(Authentication authentication) {
+        return dS.obtenerAlertas(authentication.getName());
     }
 }

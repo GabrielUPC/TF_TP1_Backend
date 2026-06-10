@@ -7,17 +7,17 @@ import java.util.List;
 
 public interface IReporteInterfaces {
 
-    void generarReporte(ReporteDTO dto);
+    void generarReporte(String correoUsuario, ReporteDTO dto);
 
     void generarPorArchivo(Long idArchivo, Long idUsuario);
 
-    List<ReporteListDTO> list();
+    List<ReporteListDTO> list(String correoUsuario);
 
-    ReporteListDTO listId(Integer idReporte);
+    ReporteListDTO listId(String correoUsuario, Integer idReporte);
 
-    ReporteListDTO listByPrediccion(Integer idPrediccion);
+    ReporteListDTO listByPrediccion(String correoUsuario, Integer idPrediccion);
 
-    List<ReporteListDTO> listByArchivo(Long idArchivo);
+    List<ReporteListDTO> listByArchivo(String correoUsuario, Long idArchivo);
 
-    void delete(Integer idReporte);
+    void delete(String correoUsuario, Integer idReporte);
 }

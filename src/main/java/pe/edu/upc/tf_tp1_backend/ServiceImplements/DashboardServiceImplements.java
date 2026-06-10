@@ -1,15 +1,19 @@
 package pe.edu.upc.tf_tp1_backend.ServiceImplements;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import pe.edu.upc.tf_tp1_backend.DTOS.DashboardDetalleDTO;
 import pe.edu.upc.tf_tp1_backend.DTOS.DashboardResumenDTO;
 import pe.edu.upc.tf_tp1_backend.Entities.ArchivoCargado;
 import pe.edu.upc.tf_tp1_backend.Entities.IndicadorHospitalario;
 import pe.edu.upc.tf_tp1_backend.Entities.PrediccionRiesgo;
 import pe.edu.upc.tf_tp1_backend.Entities.RegistroHospitalario;
+import pe.edu.upc.tf_tp1_backend.Entities.Usuario;
 import pe.edu.upc.tf_tp1_backend.Repositories.IPrediccionRiesgoRepository;
+import pe.edu.upc.tf_tp1_backend.Repositories.IUsuarioRepository;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IDashboardInterfaces;
 
 import java.util.List;
@@ -19,14 +23,19 @@ import java.util.stream.Collectors;
 @Service
 public class DashboardServiceImplements implements IDashboardInterfaces {
 
+    private static final String ROL_HOSPITALIZACION = "ATENCION_HOSPITALIZACION";
+
     @Autowired
     private IPrediccionRiesgoRepository pR;
 
+    @Autowired
+    private IUsuarioRepository uR;
+
     @Override
     @Transactional(readOnly = true)
-    public DashboardResumenDTO obtenerResumenGeneral() {
+    public DashboardResumenDTO obtenerResumenGeneral(String correoUsuario) {
 
-        List<PrediccionRiesgo> predicciones = pR.findAll();
+        List<PrediccionRiesgo> predicciones = obtenerPrediccionesPermitidas(correoUsuario);
 
         DashboardResumenDTO dto = new DashboardResumenDTO();
 
@@ -68,24 +77,25 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
 
     @Override
     @Transactional(readOnly = true)
-    public List<DashboardDetalleDTO> obtenerDetalleGeneral() {
-        return pR.findAll().stream()
+    public List<DashboardDetalleDTO> obtenerDetalleGeneral(String correoUsuario) {
+        return obtenerPrediccionesPermitidas(correoUsuario).stream()
                 .map(this::convertToDashboardDetalleDTO)
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<DashboardDetalleDTO> obtenerDetallePorArchivo(Long idArchivo) {
-        return pR.findByIndicadorHospitalario_RegistroHospitalario_ArchivoCargado_IdArchivo(idArchivo).stream()
+    public List<DashboardDetalleDTO> obtenerDetallePorArchivo(String correoUsuario, Long idArchivo) {
+        return obtenerPrediccionesPermitidas(correoUsuario).stream()
+                .filter(p -> idArchivo.equals(obtenerIdArchivo(p)))
                 .map(this::convertToDashboardDetalleDTO)
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<DashboardDetalleDTO> obtenerDetallePorRiesgo(String nivelRiesgo) {
-        return pR.findAll().stream()
+    public List<DashboardDetalleDTO> obtenerDetallePorRiesgo(String correoUsuario, String nivelRiesgo) {
+        return obtenerPrediccionesPermitidas(correoUsuario).stream()
                 .filter(p -> p.getNivelRiesgo() != null)
                 .filter(p -> p.getNivelRiesgo().equalsIgnoreCase(nivelRiesgo))
                 .map(this::convertToDashboardDetalleDTO)
@@ -94,9 +104,14 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
 
     @Override
     @Transactional(readOnly = true)
-    public List<DashboardDetalleDTO> filtrar(Integer anio, Integer mes, String servicioHospitalario) {
+    public List<DashboardDetalleDTO> filtrar(
+            String correoUsuario,
+            Integer anio,
+            Integer mes,
+            String servicioHospitalario
+    ) {
 
-        return pR.findAll().stream()
+        return obtenerPrediccionesPermitidas(correoUsuario).stream()
                 .filter(p -> cumpleFiltroAnio(p, anio))
                 .filter(p -> cumpleFiltroMes(p, mes))
                 .filter(p -> cumpleFiltroServicio(p, servicioHospitalario))
@@ -106,14 +121,103 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
 
     @Override
     @Transactional(readOnly = true)
-    public List<DashboardDetalleDTO> obtenerAlertas() {
+    public List<DashboardDetalleDTO> obtenerAlertas(String correoUsuario) {
 
-        return pR.findAll().stream()
+        return obtenerPrediccionesPermitidas(correoUsuario).stream()
                 .filter(p -> p.getNivelRiesgo() != null)
                 .filter(p -> p.getNivelRiesgo().equalsIgnoreCase("MEDIO")
                         || p.getNivelRiesgo().equalsIgnoreCase("ALTO"))
                 .map(this::convertToDashboardDetalleDTO)
                 .collect(Collectors.toList());
+    }
+
+    private List<PrediccionRiesgo> obtenerPrediccionesPermitidas(String correoUsuario) {
+
+        Usuario usuario = obtenerUsuarioAutenticado(correoUsuario);
+        validarUsuarioHospitalizacion(usuario);
+
+        Long idIpress = usuario.getIpress().getIdIpress();
+
+        return pR.findAll().stream()
+                .filter(prediccion -> perteneceAIpress(prediccion, idIpress))
+                .collect(Collectors.toList());
+    }
+
+    private Usuario obtenerUsuarioAutenticado(String correoUsuario) {
+
+        if (correoUsuario == null || correoUsuario.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Usuario autenticado no encontrado"
+            );
+        }
+
+        return uR.findByCorreo(correoUsuario)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Usuario autenticado no encontrado"
+                ));
+    }
+
+    private void validarUsuarioHospitalizacion(Usuario usuario) {
+
+        if (usuario.getRol() == null
+                || usuario.getRol().getNombreRol() == null
+                || usuario.getRol().getNombreRol().isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "El usuario no tiene un rol asignado"
+            );
+        }
+
+        if (!ROL_HOSPITALIZACION.equalsIgnoreCase(usuario.getRol().getNombreRol())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "El usuario no tiene permiso para consultar el dashboard hospitalario"
+            );
+        }
+
+        if (usuario.getIpress() == null || usuario.getIpress().getIdIpress() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "El usuario no tiene una IPRESS asignada"
+            );
+        }
+    }
+
+    private boolean perteneceAIpress(PrediccionRiesgo prediccion, Long idIpress) {
+
+        if (prediccion == null || idIpress == null) {
+            return false;
+        }
+
+        Long idIpressPrediccion = obtenerIdIpress(prediccion);
+
+        return idIpress.equals(idIpressPrediccion);
+    }
+
+    private Long obtenerIdIpress(PrediccionRiesgo prediccion) {
+
+        RegistroHospitalario registro = obtenerRegistro(prediccion);
+
+        if (registro == null
+                || registro.getArchivoCargado() == null
+                || registro.getArchivoCargado().getIpress() == null) {
+            return null;
+        }
+
+        return registro.getArchivoCargado().getIpress().getIdIpress();
+    }
+
+    private Long obtenerIdArchivo(PrediccionRiesgo prediccion) {
+
+        RegistroHospitalario registro = obtenerRegistro(prediccion);
+
+        if (registro == null || registro.getArchivoCargado() == null) {
+            return null;
+        }
+
+        return registro.getArchivoCargado().getIdArchivo();
     }
 
     private DashboardDetalleDTO convertToDashboardDetalleDTO(PrediccionRiesgo prediccion) {

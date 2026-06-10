@@ -7,15 +7,20 @@ import java.util.List;
 
 public interface IDashboardInterfaces {
 
-    DashboardResumenDTO obtenerResumenGeneral();
+    DashboardResumenDTO obtenerResumenGeneral(String correoUsuario);
 
-    List<DashboardDetalleDTO> obtenerDetalleGeneral();
+    List<DashboardDetalleDTO> obtenerDetalleGeneral(String correoUsuario);
 
-    List<DashboardDetalleDTO> obtenerDetallePorArchivo(Long idArchivo);
+    List<DashboardDetalleDTO> obtenerDetallePorArchivo(String correoUsuario, Long idArchivo);
 
-    List<DashboardDetalleDTO> obtenerDetallePorRiesgo(String nivelRiesgo);
+    List<DashboardDetalleDTO> obtenerDetallePorRiesgo(String correoUsuario, String nivelRiesgo);
 
-    List<DashboardDetalleDTO> filtrar(Integer anio, Integer mes, String servicioHospitalario);
+    List<DashboardDetalleDTO> filtrar(
+            String correoUsuario,
+            Integer anio,
+            Integer mes,
+            String servicioHospitalario
+    );
 
-    List<DashboardDetalleDTO> obtenerAlertas();
+    List<DashboardDetalleDTO> obtenerAlertas(String correoUsuario);
 }

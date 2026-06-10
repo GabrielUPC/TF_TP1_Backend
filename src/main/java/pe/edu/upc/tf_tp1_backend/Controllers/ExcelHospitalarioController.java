@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import pe.edu.upc.tf_tp1_backend.DTOS.ResumenCargaExcelDTO;
@@ -32,8 +33,14 @@ public class ExcelHospitalarioController {
     public ResumenCargaExcelDTO cargarExcel(
             @RequestParam("archivo") MultipartFile archivo,
             @RequestParam("idUsuario") Long idUsuario,
-            @RequestParam("idIpress") Long idIpress
+            @RequestParam("idIpress") Long idIpress,
+            Authentication authentication
     ) {
-        return eS.cargarValidarYProcesarExcel(archivo, idUsuario, idIpress);
+        return eS.cargarValidarYProcesarExcel(
+                archivo,
+                idUsuario,
+                idIpress,
+                authentication.getName()
+        );
     }
 }

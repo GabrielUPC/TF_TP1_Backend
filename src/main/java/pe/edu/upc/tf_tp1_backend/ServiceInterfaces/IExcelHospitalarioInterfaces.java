@@ -7,5 +7,10 @@ public interface IExcelHospitalarioInterfaces {
 
     byte[] generarPlantillaExcel();
 
-    ResumenCargaExcelDTO cargarValidarYProcesarExcel(MultipartFile archivo, Long idUsuario, Long idIpress);
+    ResumenCargaExcelDTO cargarValidarYProcesarExcel(
+            MultipartFile archivo,
+            Long idUsuario,
+            Long idIpress,
+            String correoUsuario
+    );
 }
