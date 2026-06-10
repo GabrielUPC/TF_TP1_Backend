@@ -5,13 +5,7 @@ import java.util.List;
 
 public interface IArchivoCargadoInterfaces {
 
-    public List<ArchivoCargado> list();
+    List<ArchivoCargado> listarPorUsuarioAutenticado(String correoUsuario);
 
-    public void add(ArchivoCargado archivoCargado);
-
-    public ArchivoCargado listId(Long id);
-
-    public void modificar(ArchivoCargado archivoCargado);
-
-    public void eliminar(Long id);
+    ArchivoCargado listarIdPorUsuarioAutenticado(Long idArchivo, String correoUsuario);
 }
