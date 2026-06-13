@@ -255,9 +255,10 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
             );
         }
 
+        YearMonth periodo = obtenerPeriodo(registro);
         ModeloDatosHospitalariosDTO datos = new ModeloDatosHospitalariosDTO();
-        datos.setAnio(registro.getAnio());
-        datos.setMes(registro.getMes());
+        datos.setAnio(periodo.getYear());
+        datos.setMes(periodo.getMonthValue());
         datos.setUbigeo(textoRequerido(ipress.getCodigoUbigeo(), "codigoUbigeo"));
         datos.setDepartamento(textoRequerido(ipress.getDepartamento(), "departamento"));
         datos.setProvincia(textoRequerido(ipress.getProvincia(), "provincia"));
@@ -279,11 +280,12 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
                 numeroRequerido(registro.getPacientesCama(), "pacientesCama")
         );
         datos.setTotalCamas(numeroRequerido(registro.getCamasTotales(), "camasTotales"));
+        double camasDisponiblesHabilitadas = numeroRequerido(
+                registro.getCamasDisponiblesHabilitadas(),
+                "camasDisponiblesHabilitadas"
+        );
         datos.setTotalCamasDisponibles(
-                numeroRequerido(
-                        registro.getCamasDisponiblesHabilitadas(),
-                        "camasDisponiblesHabilitadas"
-                )
+                camasDisponiblesHabilitadas * periodo.lengthOfMonth()
         );
         datos.setTotalFallecidos(0.0);
         return datos;

@@ -86,7 +86,16 @@ class PrediccionRiesgoServiceImplementsTest {
         ModeloDatosHospitalariosDTO datosActuales = solicitud.getRegistroActual();
         assertEquals("00006207", datosActuales.getCodigoIpress());
         assertEquals("MINSA", datosActuales.getSector());
+        assertEquals(2790.0, datosActuales.getTotalCamasDisponibles());
         assertEquals(0.0, datosActuales.getTotalFallecidos());
+        assertEquals(
+                2790.0,
+                solicitud.getHistorialUltimosMeses().get(0).getTotalCamasDisponibles()
+        );
+        assertEquals(
+                2520.0,
+                solicitud.getHistorialUltimosMeses().get(1).getTotalCamasDisponibles()
+        );
 
         ArgumentCaptor<PrediccionRiesgo> prediccionCaptor =
                 ArgumentCaptor.forClass(PrediccionRiesgo.class);
