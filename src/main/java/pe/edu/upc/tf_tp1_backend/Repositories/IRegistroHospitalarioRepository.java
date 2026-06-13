@@ -10,4 +10,9 @@ import java.util.List;
 public interface IRegistroHospitalarioRepository extends JpaRepository<RegistroHospitalario, Integer> {
 
     List<RegistroHospitalario> findByArchivoCargado_IdArchivo(Long idArchivo);
+
+    List<RegistroHospitalario> findByArchivoCargado_Ipress_IdIpressAndServicioHospitalarioIgnoreCase(
+            Long idIpress,
+            String servicioHospitalario
+    );
 }

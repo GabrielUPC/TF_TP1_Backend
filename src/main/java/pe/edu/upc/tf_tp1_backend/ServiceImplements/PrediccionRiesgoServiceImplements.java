@@ -6,16 +6,27 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import pe.edu.upc.tf_tp1_backend.DTOS.PrediccionRiesgoListDTO;
+import pe.edu.upc.tf_tp1_backend.DTOS.ModeloDatosHospitalariosDTO;
+import pe.edu.upc.tf_tp1_backend.DTOS.ModeloPrediccionRequestDTO;
+import pe.edu.upc.tf_tp1_backend.DTOS.ModeloPrediccionResponseDTO;
 import pe.edu.upc.tf_tp1_backend.Entities.ArchivoCargado;
 import pe.edu.upc.tf_tp1_backend.Entities.IndicadorHospitalario;
+import pe.edu.upc.tf_tp1_backend.Entities.Ipress;
 import pe.edu.upc.tf_tp1_backend.Entities.PrediccionRiesgo;
 import pe.edu.upc.tf_tp1_backend.Entities.RegistroHospitalario;
 import pe.edu.upc.tf_tp1_backend.Repositories.IIndicadorHospitalarioRepository;
 import pe.edu.upc.tf_tp1_backend.Repositories.IPrediccionRiesgoRepository;
+import pe.edu.upc.tf_tp1_backend.Repositories.IRegistroHospitalarioRepository;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IPrediccionRiesgoInterfaces;
 
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,6 +37,12 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
 
     @Autowired
     private IIndicadorHospitalarioRepository iR;
+
+    @Autowired
+    private IRegistroHospitalarioRepository rR;
+
+    @Autowired
+    private ModeloPredictivoClientService modeloClient;
 
     @Override
     @Transactional
@@ -120,82 +137,207 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
 
         prediccion.setIndicadorHospitalario(indicador);
 
-        Double probabilidad = calcularProbabilidad(indicador);
-        String nivelRiesgo = clasificarRiesgo(probabilidad);
+        RegistroHospitalario registro = indicador.getRegistroHospitalario();
+        if (registro == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "El indicador no tiene un registro hospitalario asociado"
+            );
+        }
+
+        ModeloPrediccionRequestDTO solicitud = construirSolicitud(registro);
+        ModeloPrediccionResponseDTO respuesta = modeloClient.predecir(solicitud);
+        String nivelRiesgo = validarNivelRiesgo(respuesta.getNivelRiesgoPredicho());
+        Double probabilidad = validarProbabilidad(respuesta.getProbabilidad());
 
         prediccion.setProbabilidad(probabilidad);
         prediccion.setNivelRiesgo(nivelRiesgo);
-        prediccion.setModeloUtilizado("REGLAS_PROTOTIPO_TEMPORAL");
+        prediccion.setModeloUtilizado("XGBoost - FastAPI");
         prediccion.setFechaPrediccion(LocalDateTime.now());
 
         pR.save(prediccion);
     }
 
-    private Double calcularProbabilidad(IndicadorHospitalario indicador) {
-
-        double ocupacion = obtenerValor(indicador.getOcupacionEstimada());
-        double presion = obtenerValor(indicador.getPresionIngresosCamas());
-        double promedioEstancia = obtenerValor(indicador.getPromedioEstancia());
-        double rotacion = obtenerValor(indicador.getRotacionCamas());
-
-        double score = 0.0;
-
-        if (ocupacion >= 1.00) {
-            score += 0.45;
-        } else if (ocupacion >= 0.85) {
-            score += 0.30;
-        } else {
-            score += 0.15;
-        }
-
-        if (presion >= 1.20) {
-            score += 0.30;
-        } else if (presion >= 1.00) {
-            score += 0.20;
-        } else {
-            score += 0.10;
-        }
-
-        if (promedioEstancia >= 7.00) {
-            score += 0.15;
-        } else if (promedioEstancia >= 5.00) {
-            score += 0.10;
-        } else {
-            score += 0.05;
-        }
-
-        if (rotacion >= 1.20) {
-            score += 0.10;
-        } else if (rotacion >= 1.00) {
-            score += 0.07;
-        } else {
-            score += 0.03;
-        }
-
-        if (score > 0.99) {
-            score = 0.99;
-        }
-
-        return redondear(score);
+    private ModeloPrediccionRequestDTO construirSolicitud(RegistroHospitalario registroActual) {
+        ModeloPrediccionRequestDTO solicitud = new ModeloPrediccionRequestDTO();
+        solicitud.setRegistroActual(convertirDatosModelo(registroActual));
+        solicitud.setHistorialUltimosMeses(
+                obtenerHistorial(registroActual).stream()
+                        .map(this::convertirDatosModelo)
+                        .collect(Collectors.toList())
+        );
+        return solicitud;
     }
 
-    private String clasificarRiesgo(Double probabilidad) {
+    private List<RegistroHospitalario> obtenerHistorial(RegistroHospitalario registroActual) {
+        ArchivoCargado archivo = registroActual.getArchivoCargado();
+        Ipress ipress = archivo == null ? null : archivo.getIpress();
+        if (ipress == null || ipress.getIdIpress() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "El registro hospitalario no tiene una IPRESS asociada"
+            );
+        }
 
-        if (probabilidad >= 0.70) {
-            return "ALTO";
-        } else if (probabilidad >= 0.45) {
-            return "MEDIO";
-        } else {
-            return "BAJO";
+        YearMonth periodoActual = obtenerPeriodo(registroActual);
+        List<YearMonth> periodosBuscados = List.of(
+                periodoActual.minusMonths(2),
+                periodoActual.minusMonths(1)
+        );
+
+        List<RegistroHospitalario> candidatos =
+                rR.findByArchivoCargado_Ipress_IdIpressAndServicioHospitalarioIgnoreCase(
+                        ipress.getIdIpress(),
+                        textoRequerido(
+                                registroActual.getServicioHospitalario(),
+                                "servicioHospitalario"
+                        )
+                );
+
+        Map<YearMonth, RegistroHospitalario> registroPorPeriodo = new HashMap<>();
+        for (RegistroHospitalario candidato : candidatos) {
+            YearMonth periodo = obtenerPeriodo(candidato);
+            if (!periodosBuscados.contains(periodo)) {
+                continue;
+            }
+
+            registroPorPeriodo.merge(
+                    periodo,
+                    candidato,
+                    this::registroMasReciente
+            );
+        }
+
+        List<RegistroHospitalario> historial = new ArrayList<>();
+        for (YearMonth periodo : periodosBuscados) {
+            RegistroHospitalario registro = registroPorPeriodo.get(periodo);
+            if (registro != null) {
+                historial.add(registro);
+            }
+        }
+        return historial;
+    }
+
+    private RegistroHospitalario registroMasReciente(
+            RegistroHospitalario primero,
+            RegistroHospitalario segundo
+    ) {
+        int idPrimero = primero.getIdRegistro() == null ? 0 : primero.getIdRegistro();
+        int idSegundo = segundo.getIdRegistro() == null ? 0 : segundo.getIdRegistro();
+        return idSegundo > idPrimero ? segundo : primero;
+    }
+
+    private YearMonth obtenerPeriodo(RegistroHospitalario registro) {
+        if (registro.getAnio() == null || registro.getMes() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "El registro hospitalario no tiene anio y mes completos"
+            );
+        }
+        try {
+            return YearMonth.of(registro.getAnio(), registro.getMes());
+        } catch (RuntimeException error) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "El registro hospitalario tiene un periodo invalido",
+                    error
+            );
         }
     }
 
-    private Double obtenerValor(Double valor) {
-        return valor == null ? 0.0 : valor;
+    private ModeloDatosHospitalariosDTO convertirDatosModelo(RegistroHospitalario registro) {
+        ArchivoCargado archivo = registro.getArchivoCargado();
+        Ipress ipress = archivo == null ? null : archivo.getIpress();
+        if (ipress == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "El registro hospitalario no tiene una IPRESS asociada"
+            );
+        }
+
+        ModeloDatosHospitalariosDTO datos = new ModeloDatosHospitalariosDTO();
+        datos.setAnio(registro.getAnio());
+        datos.setMes(registro.getMes());
+        datos.setUbigeo(textoRequerido(ipress.getCodigoUbigeo(), "codigoUbigeo"));
+        datos.setDepartamento(textoRequerido(ipress.getDepartamento(), "departamento"));
+        datos.setProvincia(textoRequerido(ipress.getProvincia(), "provincia"));
+        datos.setDistrito(textoRequerido(ipress.getDistrito(), "distrito"));
+        datos.setSector("MINSA");
+        datos.setCategoriaIpress(textoRequerido(ipress.getCategoriaIpress(), "categoriaIpress"));
+        datos.setCodigoIpress(textoRequerido(ipress.getCodigoRenipress(), "codigoRenipress"));
+
+        String servicio = textoRequerido(
+                registro.getServicioHospitalario(),
+                "servicioHospitalario"
+        );
+        datos.setIdHospitalizacion(servicio);
+        datos.setServicioHospitalizacion(servicio);
+        datos.setTotalIngresos(numeroRequerido(registro.getIngresos(), "ingresos"));
+        datos.setTotalEgresos(numeroRequerido(registro.getEgresos(), "egresos"));
+        datos.setTotalEstancias(numeroRequerido(registro.getEstancias(), "estancias"));
+        datos.setTotalPacientesCamas(
+                numeroRequerido(registro.getPacientesCama(), "pacientesCama")
+        );
+        datos.setTotalCamas(numeroRequerido(registro.getCamasTotales(), "camasTotales"));
+        datos.setTotalCamasDisponibles(
+                numeroRequerido(
+                        registro.getCamasDisponiblesHabilitadas(),
+                        "camasDisponiblesHabilitadas"
+                )
+        );
+        datos.setTotalFallecidos(0.0);
+        return datos;
     }
 
-    private Double redondear(Double valor) {
-        return Math.round(valor * 100.0) / 100.0;
+    private String textoRequerido(String valor, String campo) {
+        if (valor == null || valor.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "El campo " + campo + " es obligatorio para consultar el modelo"
+            );
+        }
+        return valor.trim();
+    }
+
+    private Double numeroRequerido(Integer valor, String campo) {
+        if (valor == null || valor < 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "El campo " + campo + " debe ser un numero no negativo"
+            );
+        }
+        return valor.doubleValue();
+    }
+
+    private String validarNivelRiesgo(String nivelRiesgo) {
+        if (nivelRiesgo == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "El microservicio del modelo no devolvio nivel_riesgo_predicho"
+            );
+        }
+
+        String normalizado = nivelRiesgo.trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("BAJO", "MEDIO", "ALTO").contains(normalizado)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "El microservicio del modelo devolvio un nivel de riesgo invalido"
+            );
+        }
+        return normalizado;
+    }
+
+    private Double validarProbabilidad(Double probabilidad) {
+        if (probabilidad == null
+                || probabilidad.isNaN()
+                || probabilidad < 0.0
+                || probabilidad > 1.0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "El microservicio del modelo devolvio una probabilidad invalida"
+            );
+        }
+        return probabilidad;
     }
 
     private PrediccionRiesgoListDTO convertToListDTO(PrediccionRiesgo prediccion) {
