@@ -14,6 +14,15 @@ public class ResumenCargaExcelDTO {
     private Integer registrosValidos;
     private Integer registrosConErrores;
 
+    private String formatoDetectado;
+    private Integer totalFilasInvalidas;
+    private Integer totalRegistrosValidos;
+    private Integer totalPrediccionesGeneradas;
+    private List<String> advertencias;
+    private List<String> columnasEncontradas;
+    private List<String> columnasMinimasFormatoInterno;
+    private List<String> columnasMinimasDatasetD1;
+
     private String mensaje;
     private List<ErrorValidacionDTO> errores;
 
@@ -79,6 +88,70 @@ public class ResumenCargaExcelDTO {
 
     public void setRegistrosConErrores(Integer registrosConErrores) {
         this.registrosConErrores = registrosConErrores;
+    }
+
+    public String getFormatoDetectado() {
+        return formatoDetectado;
+    }
+
+    public void setFormatoDetectado(String formatoDetectado) {
+        this.formatoDetectado = formatoDetectado;
+    }
+
+    public Integer getTotalFilasInvalidas() {
+        return totalFilasInvalidas;
+    }
+
+    public void setTotalFilasInvalidas(Integer totalFilasInvalidas) {
+        this.totalFilasInvalidas = totalFilasInvalidas;
+    }
+
+    public Integer getTotalRegistrosValidos() {
+        return totalRegistrosValidos;
+    }
+
+    public void setTotalRegistrosValidos(Integer totalRegistrosValidos) {
+        this.totalRegistrosValidos = totalRegistrosValidos;
+    }
+
+    public Integer getTotalPrediccionesGeneradas() {
+        return totalPrediccionesGeneradas;
+    }
+
+    public void setTotalPrediccionesGeneradas(Integer totalPrediccionesGeneradas) {
+        this.totalPrediccionesGeneradas = totalPrediccionesGeneradas;
+    }
+
+    public List<String> getAdvertencias() {
+        return advertencias;
+    }
+
+    public void setAdvertencias(List<String> advertencias) {
+        this.advertencias = advertencias;
+    }
+
+    public List<String> getColumnasEncontradas() {
+        return columnasEncontradas;
+    }
+
+    public void setColumnasEncontradas(List<String> columnasEncontradas) {
+        this.columnasEncontradas = columnasEncontradas;
+    }
+
+    public List<String> getColumnasMinimasFormatoInterno() {
+        return columnasMinimasFormatoInterno;
+    }
+
+    public void setColumnasMinimasFormatoInterno(List<String> columnasMinimasFormatoInterno) {
+        this.columnasMinimasFormatoInterno = columnasMinimasFormatoInterno;
+    }
+
+    public List<String> getColumnasMinimasDatasetD1() {
+        return columnasMinimasDatasetD1;
+    }
+
+    public void setColumnasMinimasDatasetD1(List<String> columnasMinimasDatasetD1) {
+        this.columnasMinimasDatasetD1 = columnasMinimasDatasetD1;
     }
 
     public String getMensaje() {

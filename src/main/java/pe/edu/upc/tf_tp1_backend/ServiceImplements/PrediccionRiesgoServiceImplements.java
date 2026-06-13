@@ -263,7 +263,7 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
         datos.setDepartamento(textoRequerido(ipress.getDepartamento(), "departamento"));
         datos.setProvincia(textoRequerido(ipress.getProvincia(), "provincia"));
         datos.setDistrito(textoRequerido(ipress.getDistrito(), "distrito"));
-        datos.setSector("MINSA");
+        datos.setSector(textoOpcional(registro.getSector(), "MINSA"));
         datos.setCategoriaIpress(textoRequerido(ipress.getCategoriaIpress(), "categoriaIpress"));
         datos.setCodigoIpress(textoRequerido(ipress.getCodigoRenipress(), "codigoRenipress"));
 
@@ -271,7 +271,9 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
                 registro.getServicioHospitalario(),
                 "servicioHospitalario"
         );
-        datos.setIdHospitalizacion(servicio);
+        datos.setIdHospitalizacion(
+                textoOpcional(registro.getIdHospitalizacion(), servicio)
+        );
         datos.setServicioHospitalizacion(servicio);
         datos.setTotalIngresos(numeroRequerido(registro.getIngresos(), "ingresos"));
         datos.setTotalEgresos(numeroRequerido(registro.getEgresos(), "egresos"));
@@ -280,15 +282,32 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
                 numeroRequerido(registro.getPacientesCama(), "pacientesCama")
         );
         datos.setTotalCamas(numeroRequerido(registro.getCamasTotales(), "camasTotales"));
-        double camasDisponiblesHabilitadas = numeroRequerido(
-                registro.getCamasDisponiblesHabilitadas(),
-                "camasDisponiblesHabilitadas"
+        if (registro.getTotalCamasDisponibles() != null) {
+            datos.setTotalCamasDisponibles(numeroRequerido(
+                    registro.getTotalCamasDisponibles(),
+                    "totalCamasDisponibles"
+            ));
+        } else {
+            double camasDisponiblesHabilitadas = numeroRequerido(
+                    registro.getCamasDisponiblesHabilitadas(),
+                    "camasDisponiblesHabilitadas"
+            );
+            datos.setTotalCamasDisponibles(
+                    camasDisponiblesHabilitadas * periodo.lengthOfMonth()
+            );
+        }
+        datos.setTotalFallecidos(
+                registro.getFallecidos() == null
+                        ? 0.0
+                        : numeroRequerido(registro.getFallecidos(), "fallecidos")
         );
-        datos.setTotalCamasDisponibles(
-                camasDisponiblesHabilitadas * periodo.lengthOfMonth()
-        );
-        datos.setTotalFallecidos(0.0);
         return datos;
+    }
+
+    private String textoOpcional(String valor, String valorPredeterminado) {
+        return valor == null || valor.isBlank()
+                ? valorPredeterminado
+                : valor.trim();
     }
 
     private String textoRequerido(String valor, String campo) {

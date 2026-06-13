@@ -1,5 +1,11 @@
 package pe.edu.upc.tf_tp1_backend.ServiceImplements;
-import org.apache.poi.ss.usermodel.*;
+
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -7,6 +13,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.ConsolidadorRegistrosHospitalarios;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.ContenidoArchivoHospitalario;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.DetectorFormatoHospitalario;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.FormatoArchivoHospitalario;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.LectorArchivoHospitalario;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.RegistroHospitalarioImportado;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.ResultadoDeteccionFormato;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.ResultadoTransformacionHospitalaria;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.TransformadorD1;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.TransformadorFormatoInterno;
 import pe.edu.upc.tf_tp1_backend.DTOS.ErrorValidacionDTO;
 import pe.edu.upc.tf_tp1_backend.DTOS.ResumenCargaExcelDTO;
 import pe.edu.upc.tf_tp1_backend.Entities.ArchivoCargado;
@@ -21,29 +37,34 @@ import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IExcelHospitalarioInterfaces;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IIndicadorHospitalarioInterfaces;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IPrediccionRiesgoInterfaces;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IReporteInterfaces;
+
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 @Service
-public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInterfaces {
+public class ExcelHospitalarioServiceImplements
+        implements IExcelHospitalarioInterfaces {
 
     private static final String ROL_ADMISION = "ADMISION_REGISTROS";
 
     @Autowired
-    private IArchivoCargadoRepository aR;
+    private IArchivoCargadoRepository archivoRepository;
 
     @Autowired
     private IReporteInterfaces reporteService;
 
     @Autowired
-    private IRegistroHospitalarioRepository rR;
+    private IRegistroHospitalarioRepository registroRepository;
 
     @Autowired
-    private IUsuarioRepository uR;
+    private IUsuarioRepository usuarioRepository;
 
     @Autowired
-    private IIpressRepository iR;
+    private IIpressRepository ipressRepository;
 
     @Autowired
     private IIndicadorHospitalarioInterfaces indicadorService;
@@ -51,27 +72,25 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
     @Autowired
     private IPrediccionRiesgoInterfaces prediccionService;
 
+    @Autowired
+    private LectorArchivoHospitalario lectorArchivo;
 
-    private static final List<String> COLUMNAS_REQUERIDAS = Arrays.asList(
-            "codigo_renipress",
-            "anio",
-            "mes",
-            "servicio_hospitalario",
-            "ingresos",
-            "egresos",
-            "estancias",
-            "pacientes_cama",
-            "camas_totales",
-            "camas_disponibles_habilitadas"
-    );
+    @Autowired
+    private DetectorFormatoHospitalario detectorFormato;
+
+    @Autowired
+    private TransformadorFormatoInterno transformadorInterno;
+
+    @Autowired
+    private TransformadorD1 transformadorD1;
+
+    @Autowired
+    private ConsolidadorRegistrosHospitalarios consolidador;
 
     @Override
     public byte[] generarPlantillaExcel() {
-
         try (Workbook workbook = new XSSFWorkbook()) {
-
             Sheet hoja = workbook.createSheet("hospitalizacion");
-
             Row cabecera = hoja.createRow(0);
 
             CellStyle estiloCabecera = workbook.createCellStyle();
@@ -79,18 +98,22 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
             fuente.setBold(true);
             estiloCabecera.setFont(fuente);
 
-            for (int i = 0; i < COLUMNAS_REQUERIDAS.size(); i++) {
-                Cell cell = cabecera.createCell(i);
-                cell.setCellValue(COLUMNAS_REQUERIDAS.get(i));
+            List<String> columnas =
+                    DetectorFormatoHospitalario.COLUMNAS_FORMATO_INTERNO;
+            for (int indice = 0; indice < columnas.size(); indice++) {
+                Cell cell = cabecera.createCell(indice);
+                String columna = "codigo_ipress".equals(columnas.get(indice))
+                        ? "codigo_renipress"
+                        : columnas.get(indice);
+                cell.setCellValue(columna);
                 cell.setCellStyle(estiloCabecera);
-                hoja.autoSizeColumn(i);
             }
 
             Row ejemplo = hoja.createRow(1);
             ejemplo.createCell(0).setCellValue("00001234");
             ejemplo.createCell(1).setCellValue(2026);
             ejemplo.createCell(2).setCellValue(1);
-            ejemplo.createCell(3).setCellValue("Hospitalización Medicina");
+            ejemplo.createCell(3).setCellValue("Hospitalizacion Medicina");
             ejemplo.createCell(4).setCellValue(120);
             ejemplo.createCell(5).setCellValue(110);
             ejemplo.createCell(6).setCellValue(550);
@@ -98,19 +121,18 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
             ejemplo.createCell(8).setCellValue(100);
             ejemplo.createCell(9).setCellValue(85);
 
-            for (int i = 0; i < COLUMNAS_REQUERIDAS.size(); i++) {
-                hoja.autoSizeColumn(i);
+            for (int indice = 0; indice < columnas.size(); indice++) {
+                hoja.autoSizeColumn(indice);
             }
 
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            workbook.write(outputStream);
-
-            return outputStream.toByteArray();
-
-        } catch (Exception e) {
+            ByteArrayOutputStream salida = new ByteArrayOutputStream();
+            workbook.write(salida);
+            return salida.toByteArray();
+        } catch (IOException error) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Error al generar la plantilla Excel"
+                    "Error al generar la plantilla hospitalaria",
+                    error
             );
         }
     }
@@ -123,196 +145,314 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
             Long idIpress,
             String correoUsuario
     ) {
+        validarArchivo(archivo);
 
-        if (archivo == null || archivo.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debe cargar un archivo Excel");
-        }
-
-        String nombreArchivo = archivo.getOriginalFilename();
-
-        if (nombreArchivo == null || !nombreArchivo.toLowerCase().endsWith(".xlsx")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El archivo debe tener formato .xlsx");
-        }
-
-        Usuario usuario = uR.findById(idUsuario)
+        Usuario usuarioSolicitado = usuarioRepository.findById(idUsuario)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Usuario no encontrado"
                 ));
-
-        Ipress ipress = iR.findById(idIpress)
+        Ipress ipress = ipressRepository.findById(idIpress)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "IPRESS no encontrada"
                 ));
-
         Usuario usuarioAutenticado = obtenerUsuarioAutenticado(correoUsuario);
         validarPermisoCarga(usuarioAutenticado, idUsuario, idIpress);
 
-        ArchivoCargado archivoCargado = new ArchivoCargado();
-        archivoCargado.setNombreArchivo(nombreArchivo);
-        archivoCargado.setFormato("xlsx");
-        archivoCargado.setFechaCarga(LocalDateTime.now());
-        archivoCargado.setEstadoValidacion("PENDIENTE");
-        archivoCargado.setEstadoProcesamiento("PENDIENTE");
-        archivoCargado.setUsuario(usuarioAutenticado);
-        archivoCargado.setIpress(ipress);
+        ArchivoCargado archivoCargado = crearArchivoPendiente(
+                archivo,
+                usuarioAutenticado,
+                ipress
+        );
 
-        archivoCargado = aR.save(archivoCargado);
-
-        List<ErrorValidacionDTO> errores = new ArrayList<>();
-        List<RegistroHospitalario> registrosValidos = new ArrayList<>();
-        Set<String> clavesDuplicadas = new HashSet<>();
-
-        int totalFilasLeidas = 0;
-
-        try (Workbook workbook = new XSSFWorkbook(archivo.getInputStream())) {
-
-            Sheet hoja = workbook.getSheetAt(0);
-
-            if (hoja == null) {
-                agregarError(errores, 0, "archivo", "HOJA_NO_ENCONTRADA",
-                        "El archivo no contiene una hoja válida.",
-                        "Verifique que el Excel tenga una hoja con datos.");
-            } else {
-
-                Row filaCabecera = hoja.getRow(0);
-
-                Map<String, Integer> columnas = obtenerColumnas(filaCabecera);
-
-                validarColumnasObligatorias(columnas, errores);
-
-                if (errores.isEmpty()) {
-
-                    for (int i = 1; i <= hoja.getLastRowNum(); i++) {
-
-                        Row fila = hoja.getRow(i);
-
-                        if (fila == null || filaVacia(fila)) {
-                            continue;
-                        }
-
-                        totalFilasLeidas++;
-
-                        int numeroFilaExcel = i + 1;
-
-                        String codigoRenipress = obtenerTexto(fila, columnas.get("codigo_renipress"));
-                        Integer anio = obtenerEntero(fila, columnas.get("anio"));
-                        Integer mes = obtenerEntero(fila, columnas.get("mes"));
-                        String servicioHospitalario = obtenerTexto(fila, columnas.get("servicio_hospitalario"));
-                        Integer ingresos = obtenerEntero(fila, columnas.get("ingresos"));
-                        Integer egresos = obtenerEntero(fila, columnas.get("egresos"));
-                        Integer estancias = obtenerEntero(fila, columnas.get("estancias"));
-                        Integer pacientesCama = obtenerEntero(fila, columnas.get("pacientes_cama"));
-                        Integer camasTotales = obtenerEntero(fila, columnas.get("camas_totales"));
-                        Integer camasDisponibles = obtenerEntero(fila, columnas.get("camas_disponibles_habilitadas"));
-
-                        validarFila(
-                                errores,
-                                numeroFilaExcel,
-                                codigoRenipress,
-                                anio,
-                                mes,
-                                servicioHospitalario,
-                                ingresos,
-                                egresos,
-                                estancias,
-                                pacientesCama,
-                                camasTotales,
-                                camasDisponibles,
-                                ipress,
-                                clavesDuplicadas
-                        );
-
-                        boolean filaConError = errores.stream()
-                                .anyMatch(e -> e.getFila().equals(numeroFilaExcel));
-
-                        if (!filaConError) {
-                            RegistroHospitalario registro = new RegistroHospitalario();
-                            registro.setArchivoCargado(archivoCargado);
-                            registro.setAnio(anio);
-                            registro.setMes(mes);
-                            registro.setServicioHospitalario(servicioHospitalario);
-                            registro.setIngresos(ingresos);
-                            registro.setEgresos(egresos);
-                            registro.setEstancias(estancias);
-                            registro.setPacientesCama(pacientesCama);
-                            registro.setCamasTotales(camasTotales);
-                            registro.setCamasDisponiblesHabilitadas(camasDisponibles);
-
-                            registrosValidos.add(registro);
-                        }
-                    }
-                }
-            }
-
-        } catch (Exception e) {
-            agregarError(errores, 0, "archivo", "ERROR_LECTURA",
-                    "No se pudo leer correctamente el archivo Excel.",
-                    "Verifique que el archivo no esté dañado y que tenga formato .xlsx.");
+        ContenidoArchivoHospitalario contenido;
+        try {
+            contenido = lectorArchivo.leer(archivo);
+        } catch (IOException | RuntimeException error) {
+            return respuestaErrorLectura(archivoCargado, error);
         }
 
-        if (!errores.isEmpty()) {
-            archivoCargado.setEstadoValidacion("ERROR");
-            archivoCargado.setEstadoProcesamiento("ERROR");
-            aR.save(archivoCargado);
+        ResultadoDeteccionFormato deteccion = detectorFormato.detectar(
+                contenido.getColumnas()
+        );
+        archivoCargado.setFormato(deteccion.getFormato().name());
+        archivoRepository.save(archivoCargado);
 
-            return construirResumen(
+        if (deteccion.getFormato() == FormatoArchivoHospitalario.NO_RECONOCIDO) {
+            return respuestaFormatoNoReconocido(
                     archivoCargado,
-                    totalFilasLeidas,
-                    registrosValidos.size(),
-                    errores,
-                    "El archivo contiene errores. Corrija la información y vuelva a cargarlo."
+                    contenido,
+                    deteccion
             );
         }
 
-        if (registrosValidos.isEmpty()) {
-            agregarError(errores, 0, "archivo", "SIN_REGISTROS",
-                    "El archivo no contiene registros válidos.",
-                    "Agregue al menos una fila de datos hospitalarios.");
+        ResultadoTransformacionHospitalaria transformacion =
+                deteccion.getFormato() == FormatoArchivoHospitalario.DATASET_D1
+                        ? transformadorD1.transformar(contenido, ipress)
+                        : transformadorInterno.transformar(contenido, ipress);
 
-            archivoCargado.setEstadoValidacion("ERROR");
-            archivoCargado.setEstadoProcesamiento("ERROR");
-            aR.save(archivoCargado);
+        List<RegistroHospitalarioImportado> consolidados =
+                consolidador.consolidar(
+                        transformacion.getRegistros(),
+                        transformacion.getAdvertencias()
+                );
+        transformacion.setRegistros(consolidados);
 
-            return construirResumen(
+        if (transformacion.getFilasCoincidentesIpress() == 0) {
+            return respuestaSinRegistros(
                     archivoCargado,
-                    totalFilasLeidas,
-                    0,
-                    errores,
-                    "El archivo no contiene registros válidos."
+                    contenido,
+                    deteccion,
+                    transformacion,
+                    "No se encontraron registros validos para la IPRESS asignada al usuario."
             );
         }
 
-        rR.saveAll(registrosValidos);
+        if (consolidados.isEmpty()) {
+            return respuestaSinRegistros(
+                    archivoCargado,
+                    contenido,
+                    deteccion,
+                    transformacion,
+                    "No se encontraron registros hospitalarios validos para procesar."
+            );
+        }
 
-        archivoCargado.setEstadoValidacion("VALIDADO");
-        archivoCargado.setEstadoProcesamiento("PROCESADO");
-        aR.save(archivoCargado);
+        completarDatosIpress(ipress, consolidados.get(0));
+        ipressRepository.save(ipress);
+
+        List<RegistroHospitalario> registros = consolidados.stream()
+                .map(registro -> convertirEntidad(registro, archivoCargado))
+                .toList();
+        registroRepository.saveAll(registros);
 
         indicadorService.calcularPorArchivo(archivoCargado.getIdArchivo());
         prediccionService.predecirPorArchivo(archivoCargado.getIdArchivo());
-        reporteService.generarPorArchivo(archivoCargado.getIdArchivo(), usuario.getIdUsuario());
+        reporteService.generarPorArchivo(
+                archivoCargado.getIdArchivo(),
+                usuarioSolicitado.getIdUsuario()
+        );
+
+        archivoCargado.setEstadoValidacion("VALIDADO");
+        archivoCargado.setEstadoProcesamiento("PROCESADO");
+        archivoRepository.save(archivoCargado);
+
+        String mensaje = "Archivo procesado correctamente. Formato detectado: "
+                + deteccion.getFormato().name()
+                + ". Registros validos: " + registros.size()
+                + ". Predicciones generadas: " + registros.size() + ".";
 
         return construirResumen(
                 archivoCargado,
-                totalFilasLeidas,
-                registrosValidos.size(),
-                errores,
-                "Archivo cargado, validado, procesado y reporte generado correctamente."
+                contenido,
+                deteccion,
+                transformacion,
+                registros.size(),
+                registros.size(),
+                mensaje
         );
     }
 
-    private Usuario obtenerUsuarioAutenticado(String correoUsuario) {
+    private void validarArchivo(MultipartFile archivo) {
+        if (archivo == null || archivo.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Debe cargar un archivo hospitalario"
+            );
+        }
 
+        String nombre = archivo.getOriginalFilename();
+        String nombreNormalizado = nombre == null
+                ? ""
+                : nombre.toLowerCase(Locale.ROOT);
+        if (!nombreNormalizado.endsWith(".xlsx")
+                && !nombreNormalizado.endsWith(".csv")) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El archivo debe tener formato .csv o .xlsx"
+            );
+        }
+    }
+
+    private ArchivoCargado crearArchivoPendiente(
+            MultipartFile archivo,
+            Usuario usuario,
+            Ipress ipress
+    ) {
+        ArchivoCargado entidad = new ArchivoCargado();
+        entidad.setNombreArchivo(archivo.getOriginalFilename());
+        entidad.setFormato(extension(archivo.getOriginalFilename()));
+        entidad.setFechaCarga(LocalDateTime.now());
+        entidad.setEstadoValidacion("PENDIENTE");
+        entidad.setEstadoProcesamiento("PENDIENTE");
+        entidad.setUsuario(usuario);
+        entidad.setIpress(ipress);
+        return archivoRepository.save(entidad);
+    }
+
+    private String extension(String nombreArchivo) {
+        if (nombreArchivo == null) {
+            return "DESCONOCIDO";
+        }
+        int punto = nombreArchivo.lastIndexOf('.');
+        return punto < 0
+                ? "DESCONOCIDO"
+                : nombreArchivo.substring(punto + 1).toUpperCase(Locale.ROOT);
+    }
+
+    private ResumenCargaExcelDTO respuestaErrorLectura(
+            ArchivoCargado archivo,
+            Exception error
+    ) {
+        archivo.setFormato(FormatoArchivoHospitalario.NO_RECONOCIDO.name());
+        archivo.setEstadoValidacion("ERROR");
+        archivo.setEstadoProcesamiento("ERROR");
+        archivoRepository.save(archivo);
+
+        ErrorValidacionDTO detalle = crearError(
+                0,
+                "archivo",
+                "ERROR_LECTURA",
+                "No se pudo leer el archivo: " + mensajeSeguro(error),
+                "Verifique la codificacion, el delimitador y que el archivo no este danado."
+        );
+        ResultadoTransformacionHospitalaria transformacion =
+                new ResultadoTransformacionHospitalaria();
+        transformacion.getErrores().add(detalle);
+        transformacion.incrementarFilasInvalidas();
+
+        return construirResumen(
+                archivo,
+                new ContenidoArchivoHospitalario(List.of(), List.of()),
+                detectorFormato.detectar(List.of()),
+                transformacion,
+                0,
+                0,
+                "No se pudo leer el archivo hospitalario."
+        );
+    }
+
+    private ResumenCargaExcelDTO respuestaFormatoNoReconocido(
+            ArchivoCargado archivo,
+            ContenidoArchivoHospitalario contenido,
+            ResultadoDeteccionFormato deteccion
+    ) {
+        archivo.setEstadoValidacion("ERROR");
+        archivo.setEstadoProcesamiento("ERROR");
+        archivoRepository.save(archivo);
+
+        ResultadoTransformacionHospitalaria transformacion =
+                new ResultadoTransformacionHospitalaria();
+        transformacion.agregarFilasInvalidas(contenido.getFilas().size());
+        transformacion.getErrores().add(crearError(
+                1,
+                "columnas",
+                "FORMATO_NO_RECONOCIDO",
+                "No se pudo reconocer el formato del archivo.",
+                "Use columnas compatibles con FORMATO_INTERNO o DATASET_D1."
+        ));
+
+        return construirResumen(
+                archivo,
+                contenido,
+                deteccion,
+                transformacion,
+                0,
+                0,
+                "No se pudo reconocer el formato del archivo. Revise las columnas requeridas para FORMATO_INTERNO o DATASET_D1."
+        );
+    }
+
+    private ResumenCargaExcelDTO respuestaSinRegistros(
+            ArchivoCargado archivo,
+            ContenidoArchivoHospitalario contenido,
+            ResultadoDeteccionFormato deteccion,
+            ResultadoTransformacionHospitalaria transformacion,
+            String mensaje
+    ) {
+        archivo.setEstadoValidacion("ERROR");
+        archivo.setEstadoProcesamiento("ERROR");
+        archivoRepository.save(archivo);
+
+        transformacion.getErrores().add(crearError(
+                0,
+                "archivo",
+                "SIN_REGISTROS_VALIDOS",
+                mensaje,
+                "Verifique la IPRESS, los periodos y los datos hospitalarios."
+        ));
+        return construirResumen(
+                archivo,
+                contenido,
+                deteccion,
+                transformacion,
+                0,
+                0,
+                mensaje
+        );
+    }
+
+    private RegistroHospitalario convertirEntidad(
+            RegistroHospitalarioImportado origen,
+            ArchivoCargado archivo
+    ) {
+        RegistroHospitalario registro = new RegistroHospitalario();
+        registro.setArchivoCargado(archivo);
+        registro.setAnio(origen.getAnio());
+        registro.setMes(origen.getMes());
+        registro.setServicioHospitalario(origen.getServicioHospitalario());
+        registro.setIdHospitalizacion(origen.getIdHospitalizacion());
+        registro.setSector(origen.getSector());
+        registro.setIngresos(origen.getIngresos());
+        registro.setEgresos(origen.getEgresos());
+        registro.setEstancias(origen.getEstancias());
+        registro.setPacientesCama(origen.getPacientesCama());
+        registro.setCamasTotales(origen.getCamasTotales());
+        registro.setCamasDisponiblesHabilitadas(
+                origen.getCamasDisponiblesHabilitadas()
+        );
+        registro.setTotalCamasDisponibles(origen.getTotalCamasDisponibles());
+        registro.setFallecidos(origen.getFallecidos());
+        return registro;
+    }
+
+    private void completarDatosIpress(
+            Ipress ipress,
+            RegistroHospitalarioImportado origen
+    ) {
+        if (!estaVacio(origen.getNombreIpress())) {
+            ipress.setNombreIpress(origen.getNombreIpress());
+        }
+        if (!estaVacio(origen.getCategoriaIpress())) {
+            ipress.setCategoriaIpress(origen.getCategoriaIpress());
+        }
+        if (!estaVacio(origen.getCodigoUbigeo())) {
+            ipress.setCodigoUbigeo(origen.getCodigoUbigeo());
+        }
+        if (!estaVacio(origen.getDepartamento())) {
+            ipress.setDepartamento(origen.getDepartamento());
+        }
+        if (!estaVacio(origen.getProvincia())) {
+            ipress.setProvincia(origen.getProvincia());
+        }
+        if (!estaVacio(origen.getDistrito())) {
+            ipress.setDistrito(origen.getDistrito());
+        }
+    }
+
+    private boolean estaVacio(String valor) {
+        return valor == null || valor.isBlank();
+    }
+
+    private Usuario obtenerUsuarioAutenticado(String correoUsuario) {
         if (correoUsuario == null || correoUsuario.isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED,
                     "Usuario autenticado no encontrado"
             );
         }
-
-        return uR.findByCorreo(correoUsuario)
+        return usuarioRepository.findByCorreo(correoUsuario)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
                         "Usuario autenticado no encontrado"
@@ -324,14 +464,13 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
             Long idUsuario,
             Long idIpress
     ) {
-
         boolean mismoUsuario = usuarioAutenticado.getIdUsuario() != null
                 && usuarioAutenticado.getIdUsuario().equals(idUsuario);
-
         boolean rolAdmision = usuarioAutenticado.getRol() != null
                 && usuarioAutenticado.getRol().getNombreRol() != null
-                && ROL_ADMISION.equalsIgnoreCase(usuarioAutenticado.getRol().getNombreRol());
-
+                && ROL_ADMISION.equalsIgnoreCase(
+                        usuarioAutenticado.getRol().getNombreRol()
+                );
         boolean mismaIpress = usuarioAutenticado.getIpress() != null
                 && usuarioAutenticado.getIpress().getIdIpress() != null
                 && usuarioAutenticado.getIpress().getIdIpress().equals(idIpress);
@@ -344,261 +483,61 @@ public class ExcelHospitalarioServiceImplements implements IExcelHospitalarioInt
         }
     }
 
-    private Map<String, Integer> obtenerColumnas(Row filaCabecera) {
-
-        Map<String, Integer> columnas = new HashMap<>();
-
-        if (filaCabecera == null) {
-            return columnas;
-        }
-
-        for (Cell cell : filaCabecera) {
-            String nombreColumna = obtenerTextoCelda(cell);
-
-            if (nombreColumna != null) {
-                columnas.put(normalizar(nombreColumna), cell.getColumnIndex());
-            }
-        }
-
-        return columnas;
-    }
-
-    private void validarColumnasObligatorias(Map<String, Integer> columnas, List<ErrorValidacionDTO> errores) {
-
-        for (String columna : COLUMNAS_REQUERIDAS) {
-            if (!columnas.containsKey(columna)) {
-                agregarError(errores, 1, columna, "COLUMNA_OBLIGATORIA",
-                        "Falta la columna obligatoria: " + columna,
-                        "Agregue la columna " + columna + " en la primera fila del Excel.");
-            }
-        }
-    }
-
-    private void validarFila(
-            List<ErrorValidacionDTO> errores,
-            Integer fila,
-            String codigoRenipress,
-            Integer anio,
-            Integer mes,
-            String servicioHospitalario,
-            Integer ingresos,
-            Integer egresos,
-            Integer estancias,
-            Integer pacientesCama,
-            Integer camasTotales,
-            Integer camasDisponibles,
-            Ipress ipress,
-            Set<String> clavesDuplicadas
+    private ResumenCargaExcelDTO construirResumen(
+            ArchivoCargado archivo,
+            ContenidoArchivoHospitalario contenido,
+            ResultadoDeteccionFormato deteccion,
+            ResultadoTransformacionHospitalaria transformacion,
+            int totalRegistrosValidos,
+            int totalPredicciones,
+            String mensaje
     ) {
-
-        if (codigoRenipress == null || codigoRenipress.isBlank()) {
-            agregarError(errores, fila, "codigo_renipress", "CAMPO_VACIO",
-                    "El código RENIPRESS está vacío.",
-                    "Ingrese el código RENIPRESS correspondiente a la IPRESS.");
-        } else if (ipress.getCodigoRenipress() != null
-                && !ipress.getCodigoRenipress().equalsIgnoreCase(codigoRenipress)) {
-            agregarError(errores, fila, "codigo_renipress", "IPRESS_NO_COINCIDE",
-                    "El código RENIPRESS del archivo no coincide con la IPRESS seleccionada.",
-                    "Verifique que el archivo corresponda a la IPRESS indicada.");
-        }
-
-        if (anio == null) {
-            agregarError(errores, fila, "anio", "CAMPO_VACIO",
-                    "El año está vacío o no es numérico.",
-                    "Ingrese un año válido, por ejemplo 2026.");
-        } else if (anio < 2000 || anio > 2100) {
-            agregarError(errores, fila, "anio", "VALOR_INVALIDO",
-                    "El año se encuentra fuera del rango permitido.",
-                    "Ingrese un año válido entre 2000 y 2100.");
-        }
-
-        if (mes == null) {
-            agregarError(errores, fila, "mes", "CAMPO_VACIO",
-                    "El mes está vacío o no es numérico.",
-                    "Ingrese un mes entre 1 y 12.");
-        } else if (mes < 1 || mes > 12) {
-            agregarError(errores, fila, "mes", "VALOR_INVALIDO",
-                    "El mes debe estar entre 1 y 12.",
-                    "Corrija el valor del mes.");
-        }
-
-        if (servicioHospitalario == null || servicioHospitalario.isBlank()) {
-            agregarError(errores, fila, "servicio_hospitalario", "CAMPO_VACIO",
-                    "El servicio hospitalario está vacío.",
-                    "Ingrese el servicio hospitalario correspondiente.");
-        }
-
-        validarEnteroNoNegativo(errores, fila, "ingresos", ingresos);
-        validarEnteroNoNegativo(errores, fila, "egresos", egresos);
-        validarEnteroNoNegativo(errores, fila, "estancias", estancias);
-        validarEnteroNoNegativo(errores, fila, "pacientes_cama", pacientesCama);
-        validarEnteroNoNegativo(errores, fila, "camas_totales", camasTotales);
-        validarEnteroNoNegativo(errores, fila, "camas_disponibles_habilitadas", camasDisponibles);
-
-        if (camasTotales != null && camasDisponibles != null && camasDisponibles > camasTotales) {
-            agregarError(errores, fila, "camas_disponibles_habilitadas", "INCONSISTENCIA",
-                    "Las camas disponibles o habilitadas no pueden ser mayores que las camas totales.",
-                    "Revise los valores de camas totales y camas disponibles/habilitadas.");
-        }
-
-        if (codigoRenipress != null && anio != null && mes != null && servicioHospitalario != null) {
-            String clave = codigoRenipress.trim().toLowerCase() + "|" + anio + "|" + mes + "|" + servicioHospitalario.trim().toLowerCase();
-
-            if (clavesDuplicadas.contains(clave)) {
-                agregarError(errores, fila, "registro", "DUPLICADO",
-                        "Existe un registro duplicado para la misma IPRESS, año, mes y servicio hospitalario.",
-                        "Elimine o consolide los registros duplicados antes de procesar.");
-            } else {
-                clavesDuplicadas.add(clave);
-            }
-        }
+        ResumenCargaExcelDTO dto = new ResumenCargaExcelDTO();
+        dto.setIdArchivo(archivo.getIdArchivo());
+        dto.setNombreArchivo(archivo.getNombreArchivo());
+        dto.setFormato(archivo.getFormato());
+        dto.setFormatoDetectado(deteccion.getFormato().name());
+        dto.setEstadoValidacion(archivo.getEstadoValidacion());
+        dto.setEstadoProcesamiento(archivo.getEstadoProcesamiento());
+        dto.setTotalFilasLeidas(contenido.getFilas().size());
+        dto.setTotalFilasInvalidas(transformacion.getTotalFilasInvalidas());
+        dto.setTotalRegistrosValidos(totalRegistrosValidos);
+        dto.setTotalPrediccionesGeneradas(totalPredicciones);
+        dto.setRegistrosValidos(totalRegistrosValidos);
+        dto.setRegistrosConErrores(transformacion.getTotalFilasInvalidas());
+        dto.setErrores(new ArrayList<>(transformacion.getErrores()));
+        dto.setAdvertencias(new ArrayList<>(transformacion.getAdvertencias()));
+        dto.setColumnasEncontradas(deteccion.getColumnasEncontradas());
+        dto.setColumnasMinimasFormatoInterno(
+                deteccion.getColumnasMinimasFormatoInterno()
+        );
+        dto.setColumnasMinimasDatasetD1(
+                deteccion.getColumnasMinimasDatasetD1()
+        );
+        dto.setMensaje(mensaje);
+        return dto;
     }
 
-    private void validarEnteroNoNegativo(List<ErrorValidacionDTO> errores, Integer fila, String campo, Integer valor) {
-
-        if (valor == null) {
-            agregarError(errores, fila, campo, "CAMPO_VACIO",
-                    "El campo " + campo + " está vacío o no es numérico.",
-                    "Ingrese un valor numérico entero mayor o igual a cero.");
-        } else if (valor < 0) {
-            agregarError(errores, fila, campo, "VALOR_NEGATIVO",
-                    "El campo " + campo + " no puede tener valores negativos.",
-                    "Corrija el valor ingresado.");
-        }
-    }
-
-    private void agregarError(
-            List<ErrorValidacionDTO> errores,
-            Integer fila,
+    private ErrorValidacionDTO crearError(
+            int fila,
             String campo,
-            String tipoError,
+            String tipo,
             String descripcion,
             String recomendacion
     ) {
         ErrorValidacionDTO error = new ErrorValidacionDTO();
         error.setFila(fila);
         error.setCampo(campo);
-        error.setTipoError(tipoError);
+        error.setTipoError(tipo);
         error.setDescripcion(descripcion);
         error.setRecomendacion(recomendacion);
-
-        errores.add(error);
+        return error;
     }
 
-    private ResumenCargaExcelDTO construirResumen(
-            ArchivoCargado archivoCargado,
-            Integer totalFilasLeidas,
-            Integer registrosValidos,
-            List<ErrorValidacionDTO> errores,
-            String mensaje
-    ) {
-
-        ResumenCargaExcelDTO dto = new ResumenCargaExcelDTO();
-
-        dto.setIdArchivo(archivoCargado.getIdArchivo());
-        dto.setNombreArchivo(archivoCargado.getNombreArchivo());
-        dto.setFormato(archivoCargado.getFormato());
-        dto.setEstadoValidacion(archivoCargado.getEstadoValidacion());
-        dto.setEstadoProcesamiento(archivoCargado.getEstadoProcesamiento());
-        dto.setTotalFilasLeidas(totalFilasLeidas);
-        dto.setRegistrosValidos(registrosValidos);
-        dto.setRegistrosConErrores(errores.size());
-        dto.setMensaje(mensaje);
-        dto.setErrores(errores);
-
-        return dto;
-    }
-
-    private String obtenerTexto(Row fila, Integer indice) {
-
-        if (indice == null) {
-            return null;
-        }
-
-        Cell cell = fila.getCell(indice);
-
-        return obtenerTextoCelda(cell);
-    }
-
-    private String obtenerTextoCelda(Cell cell) {
-
-        if (cell == null) {
-            return null;
-        }
-
-        DataFormatter formatter = new DataFormatter();
-
-        String valor = formatter.formatCellValue(cell);
-
-        if (valor == null) {
-            return null;
-        }
-
-        return valor.trim();
-    }
-
-    private Integer obtenerEntero(Row fila, Integer indice) {
-
-        if (indice == null) {
-            return null;
-        }
-
-        Cell cell = fila.getCell(indice);
-
-        if (cell == null) {
-            return null;
-        }
-
-        try {
-            if (cell.getCellType() == CellType.NUMERIC) {
-                return (int) cell.getNumericCellValue();
-            }
-
-            String valor = obtenerTextoCelda(cell);
-
-            if (valor == null || valor.isBlank()) {
-                return null;
-            }
-
-            valor = valor.replace(",", "").trim();
-
-            return Integer.parseInt(valor);
-
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private boolean filaVacia(Row fila) {
-
-        for (int i = 0; i < COLUMNAS_REQUERIDAS.size(); i++) {
-            Cell cell = fila.getCell(i);
-            String valor = obtenerTextoCelda(cell);
-
-            if (valor != null && !valor.isBlank()) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private String normalizar(String texto) {
-
-        if (texto == null) {
-            return "";
-        }
-
-        return texto.trim()
-                .toLowerCase()
-                .replace(" ", "_")
-                .replace("-", "_")
-                .replace(".", "")
-                .replace("á", "a")
-                .replace("é", "e")
-                .replace("í", "i")
-                .replace("ó", "o")
-                .replace("ú", "u")
-                .replace("ñ", "n");
+    private String mensajeSeguro(Exception error) {
+        String mensaje = error.getMessage();
+        return mensaje == null || mensaje.isBlank()
+                ? error.getClass().getSimpleName()
+                : mensaje;
     }
 }

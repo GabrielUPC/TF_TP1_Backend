@@ -42,6 +42,18 @@ public class RegistroHospitalario {
     @Column(name = "camas_disponibles_habilitadas")
     private Integer camasDisponiblesHabilitadas;
 
+    @Column(name = "total_camas_disponibles")
+    private Integer totalCamasDisponibles;
+
+    @Column(name = "total_fallecidos")
+    private Integer fallecidos;
+
+    @Column(name = "id_hospitalizacion", length = 100)
+    private String idHospitalizacion;
+
+    @Column(name = "sector", length = 100)
+    private String sector;
+
     public RegistroHospitalario() {
     }
 
@@ -131,5 +143,37 @@ public class RegistroHospitalario {
 
     public void setCamasDisponiblesHabilitadas(Integer camasDisponiblesHabilitadas) {
         this.camasDisponiblesHabilitadas = camasDisponiblesHabilitadas;
+    }
+
+    public Integer getTotalCamasDisponibles() {
+        return totalCamasDisponibles;
+    }
+
+    public void setTotalCamasDisponibles(Integer totalCamasDisponibles) {
+        this.totalCamasDisponibles = totalCamasDisponibles;
+    }
+
+    public Integer getFallecidos() {
+        return fallecidos;
+    }
+
+    public void setFallecidos(Integer fallecidos) {
+        this.fallecidos = fallecidos;
+    }
+
+    public String getIdHospitalizacion() {
+        return idHospitalizacion;
+    }
+
+    public void setIdHospitalizacion(String idHospitalizacion) {
+        this.idHospitalizacion = idHospitalizacion;
+    }
+
+    public String getSector() {
+        return sector;
+    }
+
+    public void setSector(String sector) {
+        this.sector = sector;
     }
 }

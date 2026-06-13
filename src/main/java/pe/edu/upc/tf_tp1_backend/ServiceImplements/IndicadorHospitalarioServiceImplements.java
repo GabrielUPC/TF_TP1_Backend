@@ -118,14 +118,18 @@ public class IndicadorHospitalarioServiceImplements implements IIndicadorHospita
 
         indicador.setRegistroHospitalario(registro);
 
+        Integer camasReferencia = registro.getCamasDisponiblesHabilitadas() != null
+                ? registro.getCamasDisponiblesHabilitadas()
+                : registro.getCamasTotales();
+
         Double ocupacionEstimada = dividir(
                 registro.getPacientesCama(),
-                registro.getCamasDisponiblesHabilitadas()
+                camasReferencia
         );
 
         Double presionIngresosCamas = dividir(
                 registro.getIngresos(),
-                registro.getCamasDisponiblesHabilitadas()
+                camasReferencia
         );
 
         Double promedioEstancia = dividir(
@@ -135,7 +139,7 @@ public class IndicadorHospitalarioServiceImplements implements IIndicadorHospita
 
         Double rotacionCamas = dividir(
                 registro.getEgresos(),
-                registro.getCamasDisponiblesHabilitadas()
+                camasReferencia
         );
 
         indicador.setOcupacionEstimada(ocupacionEstimada);

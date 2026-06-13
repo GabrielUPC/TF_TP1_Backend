@@ -107,6 +107,58 @@ class PrediccionRiesgoServiceImplementsTest {
         assertEquals("XGBoost - FastAPI", guardada.getModeloUtilizado());
     }
 
+    @Test
+    void datasetD1EnviaCamasDiaSinMultiplicar() {
+        Ipress ipress = crearIpress();
+        RegistroHospitalario registro = crearRegistro(4, 2026, 1, ipress);
+        registro.setCamasDisponiblesHabilitadas(null);
+        registro.setTotalCamasDisponibles(715);
+        registro.setFallecidos(2);
+        registro.setSector("PRIVADO");
+        registro.setIdHospitalizacion("241800");
+
+        IndicadorHospitalario indicador = new IndicadorHospitalario();
+        indicador.setIdIndicador(11);
+        indicador.setRegistroHospitalario(registro);
+
+        ModeloPrediccionResponseDTO respuesta = new ModeloPrediccionResponseDTO();
+        respuesta.setNivelRiesgoPredicho("medio");
+        respuesta.setProbabilidad(0.72);
+
+        when(indicadorRepository.findById(11)).thenReturn(Optional.of(indicador));
+        when(prediccionRepository.findByIndicadorHospitalario_IdIndicador(11))
+                .thenReturn(Optional.empty());
+        when(registroRepository
+                .findByArchivoCargado_Ipress_IdIpressAndServicioHospitalarioIgnoreCase(
+                        99L,
+                        "HOSPITALIZACION GENERAL"
+                ))
+                .thenReturn(List.of(registro));
+        when(modeloClient.predecir(any(ModeloPrediccionRequestDTO.class)))
+                .thenReturn(respuesta);
+
+        service.predecirPorIndicador(11);
+
+        ArgumentCaptor<ModeloPrediccionRequestDTO> solicitudCaptor =
+                ArgumentCaptor.forClass(ModeloPrediccionRequestDTO.class);
+        verify(modeloClient).predecir(solicitudCaptor.capture());
+
+        ModeloDatosHospitalariosDTO datos =
+                solicitudCaptor.getValue().getRegistroActual();
+        assertEquals(715.0, datos.getTotalCamasDisponibles());
+        assertEquals(2.0, datos.getTotalFallecidos());
+        assertEquals("PRIVADO", datos.getSector());
+        assertEquals("241800", datos.getIdHospitalizacion());
+
+        ArgumentCaptor<PrediccionRiesgo> prediccionCaptor =
+                ArgumentCaptor.forClass(PrediccionRiesgo.class);
+        verify(prediccionRepository).save(prediccionCaptor.capture());
+        assertEquals(
+                "XGBoost - FastAPI",
+                prediccionCaptor.getValue().getModeloUtilizado()
+        );
+    }
+
     private Ipress crearIpress() {
         Ipress ipress = new Ipress();
         ipress.setIdIpress(99L);
