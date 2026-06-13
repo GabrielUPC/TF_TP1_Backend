@@ -118,9 +118,17 @@ public class IndicadorHospitalarioServiceImplements implements IIndicadorHospita
 
         indicador.setRegistroHospitalario(registro);
 
-        Integer camasReferencia = registro.getCamasDisponiblesHabilitadas() != null
-                ? registro.getCamasDisponiblesHabilitadas()
-                : registro.getCamasTotales();
+        Integer camasReferencia;
+
+        if (registro.getTotalCamasDisponibles() != null
+                && registro.getTotalCamasDisponibles() > 0) {
+            camasReferencia = registro.getTotalCamasDisponibles();
+        } else if (registro.getCamasDisponiblesHabilitadas() != null
+                && registro.getCamasDisponiblesHabilitadas() > 0) {
+            camasReferencia = registro.getCamasDisponiblesHabilitadas();
+        } else {
+            camasReferencia = registro.getCamasTotales();
+        }
 
         Double ocupacionEstimada = dividir(
                 registro.getPacientesCama(),
