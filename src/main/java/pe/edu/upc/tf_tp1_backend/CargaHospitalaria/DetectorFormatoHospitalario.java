@@ -45,7 +45,14 @@ public class DetectorFormatoHospitalario {
     );
 
     public ResultadoDeteccionFormato detectar(List<String> columnas) {
-        Set<String> encontradas = new LinkedHashSet<>(columnas);
+        Set<String> encontradas = columnas.stream()
+                .map(NormalizadorColumnas::normalizar)
+                .filter(columna -> !columna.isBlank())
+                .collect(
+                        LinkedHashSet::new,
+                        Set::add,
+                        Set::addAll
+                );
 
         FormatoArchivoHospitalario formato;
         if (encontradas.containsAll(COLUMNAS_DATASET_D1)) {

@@ -24,6 +24,26 @@ class DetectorFormatoHospitalarioTest {
     }
 
     @Test
+    void detectaDatasetD1AntiguoDespuesDeNormalizarAlias() {
+        List<String> columnasAntiguas = DetectorFormatoHospitalario
+                .COLUMNAS_DATASET_D1
+                .stream()
+                .map(columna -> "dias_cama_disponible".equals(columna)
+                        ? "\"NRO_TOTAL_CAMAS_DISPONIB\""
+                        : columna.toUpperCase())
+                .toList();
+
+        ResultadoDeteccionFormato resultado = detector.detectar(
+                columnasAntiguas
+        );
+
+        assertEquals(
+                FormatoArchivoHospitalario.DATASET_D1,
+                resultado.getFormato()
+        );
+    }
+
+    @Test
     void detectaFormatoInternoPorColumnas() {
         ResultadoDeteccionFormato resultado = detector.detectar(
                 DetectorFormatoHospitalario.COLUMNAS_FORMATO_INTERNO

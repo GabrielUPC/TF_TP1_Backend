@@ -12,7 +12,15 @@ public final class NormalizadorColumnas {
             Map.entry("co_ipress", "codigo_ipress"),
             Map.entry("codigo_renipress", "codigo_ipress"),
             Map.entry("hospitalizacion", "servicio_hospitalario"),
-            Map.entry("servicio_hospitalizacion", "servicio_hospitalario")
+            Map.entry("servicio_hospitalizacion", "servicio_hospitalario"),
+            Map.entry(
+                    "nro_total_camas_disponib",
+                    "dias_cama_disponible"
+            ),
+            Map.entry(
+                    "nro_total_camas_disponibles",
+                    "dias_cama_disponible"
+            )
     );
 
     private NormalizadorColumnas() {
@@ -23,7 +31,10 @@ public final class NormalizadorColumnas {
             return "";
         }
 
-        String sinBom = columna.replace("\uFEFF", "").trim();
+        String sinBom = columna
+                .replace("\uFEFF", "")
+                .replace("\"", "")
+                .trim();
         String sinTildes = Normalizer.normalize(sinBom, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}+", "");
         String normalizada = sinTildes

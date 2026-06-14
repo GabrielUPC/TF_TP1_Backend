@@ -13,6 +13,8 @@ public class TransformadorD1 {
             "nro_total_pacientes_camas",
             "nro_total_camas",
             "dias_cama_disponible",
+            "nro_total_camas_disponib",
+            "nro_total_camas_disponibles",
             "nro_total_fallecidos"
     };
 
@@ -65,10 +67,7 @@ public class TransformadorD1 {
                     "nro_total_pacientes_camas"
             );
             Integer camasTotales = numero(fila, "nro_total_camas");
-            Integer camasDiaDisponibles = numero(
-                    fila,
-                    "dias_cama_disponible"
-            );
+            Integer camasDiaDisponibles = numeroCamasDia(fila);
             Integer fallecidos = numero(fila, "nro_total_fallecidos");
 
             boolean invalida = codigoIpress.isBlank()
@@ -166,5 +165,16 @@ public class TransformadorD1 {
         return TransformacionHospitalariaUtil.enteroNoNegativo(
                 fila.get(columna)
         );
+    }
+
+    private Integer numeroCamasDia(FilaArchivoHospitalario fila) {
+        String valor = fila.get("dias_cama_disponible");
+        if (valor == null) {
+            valor = fila.get("nro_total_camas_disponib");
+        }
+        if (valor == null) {
+            valor = fila.get("nro_total_camas_disponibles");
+        }
+        return TransformacionHospitalariaUtil.enteroNoNegativo(valor);
     }
 }
