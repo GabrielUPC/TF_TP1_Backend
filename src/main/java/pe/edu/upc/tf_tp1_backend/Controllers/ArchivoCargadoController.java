@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import pe.edu.upc.tf_tp1_backend.DTOS.ArchivoCargadoDTO;
 import pe.edu.upc.tf_tp1_backend.DTOS.ArchivoCargadoListDTO;
+import pe.edu.upc.tf_tp1_backend.DTOS.ArchivoProcesadoDTO;
 import pe.edu.upc.tf_tp1_backend.Entities.ArchivoCargado;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IArchivoCargadoInterfaces;
 
@@ -26,6 +27,15 @@ public class ArchivoCargadoController {
         return archivoService.listarPorUsuarioAutenticado(authentication.getName()).stream()
                 .map(this::convertirAListDTO)
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/procesados")
+    public List<ArchivoProcesadoDTO> listarProcesados(
+            Authentication authentication
+    ) {
+        return archivoService.listarProcesadosPorUsuarioAutenticado(
+                authentication.getName()
+        );
     }
 
     @PostMapping

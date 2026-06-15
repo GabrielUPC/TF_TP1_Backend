@@ -9,6 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import pe.edu.upc.tf_tp1_backend.DTOS.ModeloDatosHospitalariosDTO;
 import pe.edu.upc.tf_tp1_backend.DTOS.ModeloPrediccionRequestDTO;
 import pe.edu.upc.tf_tp1_backend.DTOS.ModeloPrediccionResponseDTO;
+import pe.edu.upc.tf_tp1_backend.DTOS.PrediccionRiesgoListDTO;
 import pe.edu.upc.tf_tp1_backend.Entities.ArchivoCargado;
 import pe.edu.upc.tf_tp1_backend.Entities.IndicadorHospitalario;
 import pe.edu.upc.tf_tp1_backend.Entities.Ipress;
@@ -157,6 +158,44 @@ class PrediccionRiesgoServiceImplementsTest {
                 "XGBoost - FastAPI",
                 prediccionCaptor.getValue().getModeloUtilizado()
         );
+    }
+
+    @Test
+    void exponeArchivoIpressYPeriodoPredichoConCambioDeAnio() {
+        Ipress ipress = crearIpress();
+        RegistroHospitalario diciembre = crearRegistro(20, 2016, 12, ipress);
+        diciembre.getArchivoCargado().setIdArchivo(5L);
+        diciembre.getArchivoCargado().setNombreArchivo(
+                "ConsultaD1_2016.csv"
+        );
+
+        IndicadorHospitalario indicador = new IndicadorHospitalario();
+        indicador.setIdIndicador(30);
+        indicador.setRegistroHospitalario(diciembre);
+
+        PrediccionRiesgo prediccion = new PrediccionRiesgo();
+        prediccion.setIdPrediccion(40);
+        prediccion.setIndicadorHospitalario(indicador);
+        prediccion.setNivelRiesgo("ALTO");
+        prediccion.setProbabilidad(0.9);
+        prediccion.setModeloUtilizado("XGBoost - FastAPI");
+
+        when(prediccionRepository
+                .findByIndicadorHospitalario_RegistroHospitalario_ArchivoCargado_IdArchivo(
+                        5L
+                ))
+                .thenReturn(List.of(prediccion));
+
+        PrediccionRiesgoListDTO dto = service.listByArchivo(5L).get(0);
+
+        assertEquals(5L, dto.getIdArchivo());
+        assertEquals("ConsultaD1_2016.csv", dto.getNombreArchivo());
+        assertEquals("00006207", dto.getCodigoIpress());
+        assertEquals(2016, dto.getAnio());
+        assertEquals(12, dto.getMes());
+        assertEquals(2017, dto.getAnioPredicho());
+        assertEquals(1, dto.getMesPredicho());
+        assertEquals("HOSPITALIZACION GENERAL", dto.getServicioHospitalario());
     }
 
     private Ipress crearIpress() {

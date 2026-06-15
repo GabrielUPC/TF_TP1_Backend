@@ -16,6 +16,7 @@ import pe.edu.upc.tf_tp1_backend.Repositories.IPrediccionRiesgoRepository;
 import pe.edu.upc.tf_tp1_backend.Repositories.IUsuarioRepository;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IDashboardInterfaces;
 
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -33,9 +34,16 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
 
     @Override
     @Transactional(readOnly = true)
-    public DashboardResumenDTO obtenerResumenGeneral(String correoUsuario) {
+    public DashboardResumenDTO obtenerResumenGeneral(
+            String correoUsuario,
+            Long idArchivo
+    ) {
 
-        List<PrediccionRiesgo> predicciones = obtenerPrediccionesPermitidas(correoUsuario);
+        List<PrediccionRiesgo> predicciones = obtenerPrediccionesPermitidas(
+                correoUsuario
+        ).stream()
+                .filter(p -> cumpleFiltroArchivo(p, idArchivo))
+                .collect(Collectors.toList());
 
         DashboardResumenDTO dto = new DashboardResumenDTO();
 
@@ -77,8 +85,12 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
 
     @Override
     @Transactional(readOnly = true)
-    public List<DashboardDetalleDTO> obtenerDetalleGeneral(String correoUsuario) {
+    public List<DashboardDetalleDTO> obtenerDetalleGeneral(
+            String correoUsuario,
+            Long idArchivo
+    ) {
         return obtenerPrediccionesPermitidas(correoUsuario).stream()
+                .filter(p -> cumpleFiltroArchivo(p, idArchivo))
                 .map(this::convertToDashboardDetalleDTO)
                 .collect(Collectors.toList());
     }
@@ -106,12 +118,14 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
     @Transactional(readOnly = true)
     public List<DashboardDetalleDTO> filtrar(
             String correoUsuario,
+            Long idArchivo,
             Integer anio,
             Integer mes,
             String servicioHospitalario
     ) {
 
         return obtenerPrediccionesPermitidas(correoUsuario).stream()
+                .filter(p -> cumpleFiltroArchivo(p, idArchivo))
                 .filter(p -> cumpleFiltroAnio(p, anio))
                 .filter(p -> cumpleFiltroMes(p, mes))
                 .filter(p -> cumpleFiltroServicio(p, servicioHospitalario))
@@ -121,9 +135,13 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
 
     @Override
     @Transactional(readOnly = true)
-    public List<DashboardDetalleDTO> obtenerAlertas(String correoUsuario) {
+    public List<DashboardDetalleDTO> obtenerAlertas(
+            String correoUsuario,
+            Long idArchivo
+    ) {
 
         return obtenerPrediccionesPermitidas(correoUsuario).stream()
+                .filter(p -> cumpleFiltroArchivo(p, idArchivo))
                 .filter(p -> p.getNivelRiesgo() != null)
                 .filter(p -> p.getNivelRiesgo().equalsIgnoreCase("MEDIO")
                         || p.getNivelRiesgo().equalsIgnoreCase("ALTO"))
@@ -245,6 +263,7 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
                 dto.setIdRegistro(registro.getIdRegistro());
                 dto.setAnio(registro.getAnio());
                 dto.setMes(registro.getMes());
+                completarPeriodoPredicho(dto, registro);
                 dto.setServicioHospitalario(registro.getServicioHospitalario());
 
                 dto.setIngresos(registro.getIngresos());
@@ -259,6 +278,11 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
                 if (archivo != null) {
                     dto.setIdArchivo(archivo.getIdArchivo());
                     dto.setNombreArchivo(archivo.getNombreArchivo());
+                    if (archivo.getIpress() != null) {
+                        dto.setCodigoIpress(
+                                archivo.getIpress().getCodigoRenipress()
+                        );
+                    }
                 }
             }
         }
@@ -267,6 +291,26 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         dto.setInterpretacion(generarInterpretacion(prediccion));
 
         return dto;
+    }
+
+    private void completarPeriodoPredicho(
+            DashboardDetalleDTO dto,
+            RegistroHospitalario registro
+    ) {
+        if (registro.getAnio() == null || registro.getMes() == null) {
+            return;
+        }
+
+        try {
+            YearMonth periodoPredicho = YearMonth.of(
+                    registro.getAnio(),
+                    registro.getMes()
+            ).plusMonths(1);
+            dto.setAnioPredicho(periodoPredicho.getYear());
+            dto.setMesPredicho(periodoPredicho.getMonthValue());
+        } catch (RuntimeException ignored) {
+            // El periodo base se conserva y el periodo predicho queda sin informar.
+        }
     }
 
     private String generarAlerta(String nivelRiesgo) {
@@ -312,6 +356,14 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         RegistroHospitalario registro = obtenerRegistro(prediccion);
 
         return registro != null && Objects.equals(registro.getAnio(), anio);
+    }
+
+    private boolean cumpleFiltroArchivo(
+            PrediccionRiesgo prediccion,
+            Long idArchivo
+    ) {
+        return idArchivo == null
+                || Objects.equals(obtenerIdArchivo(prediccion), idArchivo);
     }
 
     private boolean cumpleFiltroMes(PrediccionRiesgo prediccion, Integer mes) {

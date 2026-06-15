@@ -13,6 +13,15 @@ public interface IReporteInterfaces {
 
     List<ReporteListDTO> list(String correoUsuario);
 
+    List<ReporteListDTO> filtrar(
+            String correoUsuario,
+            Long idArchivo,
+            Integer anio,
+            Integer mes,
+            String servicioHospitalario,
+            String nivelRiesgo
+    );
+
     ReporteListDTO listId(String correoUsuario, Integer idReporte);
 
     ReporteListDTO listByPrediccion(String correoUsuario, Integer idPrediccion);

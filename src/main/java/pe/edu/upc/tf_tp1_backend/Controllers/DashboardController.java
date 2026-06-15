@@ -18,13 +18,19 @@ public class DashboardController {
     private IDashboardInterfaces dS;
 
     @GetMapping("/resumen")
-    public DashboardResumenDTO obtenerResumenGeneral(Authentication authentication) {
-        return dS.obtenerResumenGeneral(authentication.getName());
+    public DashboardResumenDTO obtenerResumenGeneral(
+            @RequestParam(value = "idArchivo", required = false) Long idArchivo,
+            Authentication authentication
+    ) {
+        return dS.obtenerResumenGeneral(authentication.getName(), idArchivo);
     }
 
     @GetMapping("/detalle")
-    public List<DashboardDetalleDTO> obtenerDetalleGeneral(Authentication authentication) {
-        return dS.obtenerDetalleGeneral(authentication.getName());
+    public List<DashboardDetalleDTO> obtenerDetalleGeneral(
+            @RequestParam(value = "idArchivo", required = false) Long idArchivo,
+            Authentication authentication
+    ) {
+        return dS.obtenerDetalleGeneral(authentication.getName(), idArchivo);
     }
 
     @GetMapping("/archivo/{idArchivo}")
@@ -45,16 +51,26 @@ public class DashboardController {
 
     @GetMapping("/filtro")
     public List<DashboardDetalleDTO> filtrar(
+            @RequestParam(value = "idArchivo", required = false) Long idArchivo,
             @RequestParam(value = "anio", required = false) Integer anio,
             @RequestParam(value = "mes", required = false) Integer mes,
             @RequestParam(value = "servicioHospitalario", required = false) String servicioHospitalario,
             Authentication authentication
     ) {
-        return dS.filtrar(authentication.getName(), anio, mes, servicioHospitalario);
+        return dS.filtrar(
+                authentication.getName(),
+                idArchivo,
+                anio,
+                mes,
+                servicioHospitalario
+        );
     }
 
     @GetMapping("/alertas")
-    public List<DashboardDetalleDTO> obtenerAlertas(Authentication authentication) {
-        return dS.obtenerAlertas(authentication.getName());
+    public List<DashboardDetalleDTO> obtenerAlertas(
+            @RequestParam(value = "idArchivo", required = false) Long idArchivo,
+            Authentication authentication
+    ) {
+        return dS.obtenerAlertas(authentication.getName(), idArchivo);
     }
 }

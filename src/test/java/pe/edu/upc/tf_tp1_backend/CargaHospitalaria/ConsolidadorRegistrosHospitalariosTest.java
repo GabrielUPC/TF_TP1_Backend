@@ -29,6 +29,24 @@ class ConsolidadorRegistrosHospitalariosTest {
         assertEquals(1, advertencias.size());
     }
 
+    @Test
+    void mantieneSeparadosLosServiciosDeLaMismaIpressYPeriodo() {
+        RegistroHospitalarioImportado uci = registro(10, 8, 100, 2800);
+        uci.setServicioHospitalario("UCI");
+        RegistroHospitalarioImportado medicina = registro(20, 18, 100, 2800);
+        medicina.setServicioHospitalario("MEDICINA");
+
+        List<RegistroHospitalarioImportado> resultado =
+                new ConsolidadorRegistrosHospitalarios().consolidar(
+                        List.of(uci, medicina),
+                        new ArrayList<>()
+                );
+
+        assertEquals(2, resultado.size());
+        assertEquals("UCI", resultado.get(0).getServicioHospitalario());
+        assertEquals("MEDICINA", resultado.get(1).getServicioHospitalario());
+    }
+
     private RegistroHospitalarioImportado registro(
             int ingresos,
             int egresos,

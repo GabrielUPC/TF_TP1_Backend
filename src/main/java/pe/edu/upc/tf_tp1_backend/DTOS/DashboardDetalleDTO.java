@@ -12,7 +12,10 @@ public class DashboardDetalleDTO {
 
     private Integer anio;
     private Integer mes;
+    private Integer anioPredicho;
+    private Integer mesPredicho;
     private String servicioHospitalario;
+    private String codigoIpress;
 
     private Integer ingresos;
     private Integer egresos;
@@ -90,12 +93,36 @@ public class DashboardDetalleDTO {
         this.mes = mes;
     }
 
+    public Integer getAnioPredicho() {
+        return anioPredicho;
+    }
+
+    public void setAnioPredicho(Integer anioPredicho) {
+        this.anioPredicho = anioPredicho;
+    }
+
+    public Integer getMesPredicho() {
+        return mesPredicho;
+    }
+
+    public void setMesPredicho(Integer mesPredicho) {
+        this.mesPredicho = mesPredicho;
+    }
+
     public String getServicioHospitalario() {
         return servicioHospitalario;
     }
 
     public void setServicioHospitalario(String servicioHospitalario) {
         this.servicioHospitalario = servicioHospitalario;
+    }
+
+    public String getCodigoIpress() {
+        return codigoIpress;
+    }
+
+    public void setCodigoIpress(String codigoIpress) {
+        this.codigoIpress = codigoIpress;
     }
 
     public Integer getIngresos() {

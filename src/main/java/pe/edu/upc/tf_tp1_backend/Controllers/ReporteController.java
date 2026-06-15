@@ -23,8 +23,22 @@ public class ReporteController {
     }
 
     @GetMapping
-    public List<ReporteListDTO> listar(Authentication authentication) {
-        return rS.list(authentication.getName());
+    public List<ReporteListDTO> listar(
+            @RequestParam(value = "idArchivo", required = false) Long idArchivo,
+            @RequestParam(value = "anio", required = false) Integer anio,
+            @RequestParam(value = "mes", required = false) Integer mes,
+            @RequestParam(value = "servicioHospitalario", required = false) String servicioHospitalario,
+            @RequestParam(value = "nivelRiesgo", required = false) String nivelRiesgo,
+            Authentication authentication
+    ) {
+        return rS.filtrar(
+                authentication.getName(),
+                idArchivo,
+                anio,
+                mes,
+                servicioHospitalario,
+                nivelRiesgo
+        );
     }
 
     @GetMapping("/{idReporte}")

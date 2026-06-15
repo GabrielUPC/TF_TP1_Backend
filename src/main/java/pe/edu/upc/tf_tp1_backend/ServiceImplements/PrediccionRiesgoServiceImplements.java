@@ -386,6 +386,7 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
                 dto.setIdRegistro(registro.getIdRegistro());
                 dto.setAnio(registro.getAnio());
                 dto.setMes(registro.getMes());
+                completarPeriodoPredicho(dto, registro);
                 dto.setServicioHospitalario(registro.getServicioHospitalario());
                 dto.setIngresos(registro.getIngresos());
                 dto.setEgresos(registro.getEgresos());
@@ -399,10 +400,35 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
                 if (archivo != null) {
                     dto.setIdArchivo(archivo.getIdArchivo());
                     dto.setNombreArchivo(archivo.getNombreArchivo());
+                    if (archivo.getIpress() != null) {
+                        dto.setCodigoIpress(
+                                archivo.getIpress().getCodigoRenipress()
+                        );
+                    }
                 }
             }
         }
 
         return dto;
+    }
+
+    private void completarPeriodoPredicho(
+            PrediccionRiesgoListDTO dto,
+            RegistroHospitalario registro
+    ) {
+        if (registro.getAnio() == null || registro.getMes() == null) {
+            return;
+        }
+
+        try {
+            YearMonth periodoPredicho = YearMonth.of(
+                    registro.getAnio(),
+                    registro.getMes()
+            ).plusMonths(1);
+            dto.setAnioPredicho(periodoPredicho.getYear());
+            dto.setMesPredicho(periodoPredicho.getMonthValue());
+        } catch (RuntimeException ignored) {
+            // El periodo base se conserva y el periodo predicho queda sin informar.
+        }
     }
 }

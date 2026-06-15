@@ -19,8 +19,13 @@ import pe.edu.upc.tf_tp1_backend.Repositories.IUsuarioRepository;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IReporteInterfaces;
 
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -112,7 +117,37 @@ public class ReporteServiceImplements implements IReporteInterfaces {
     @Override
     @Transactional(readOnly = true)
     public List<ReporteListDTO> list(String correoUsuario) {
+        return filtrar(correoUsuario, null, null, null, null, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReporteListDTO> filtrar(
+            String correoUsuario,
+            Long idArchivo,
+            Integer anio,
+            Integer mes,
+            String servicioHospitalario,
+            String nivelRiesgo
+    ) {
+        String riesgoNormalizado = normalizarNivelRiesgo(nivelRiesgo);
+
         return obtenerReportesPermitidos(correoUsuario).stream()
+                .filter(reporte -> cumpleFiltroArchivo(reporte, idArchivo))
+                .filter(reporte -> cumpleFiltroAnio(reporte, anio))
+                .filter(reporte -> cumpleFiltroMes(reporte, mes))
+                .filter(reporte -> cumpleFiltroServicio(
+                        reporte,
+                        servicioHospitalario
+                ))
+                .filter(reporte -> cumpleFiltroRiesgo(
+                        reporte,
+                        riesgoNormalizado
+                ))
+                .sorted(Comparator.comparing(
+                        Reporte::getFechaGeneracion,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                ))
                 .map(this::convertToListDTO)
                 .collect(Collectors.toList());
     }
@@ -158,10 +193,7 @@ public class ReporteServiceImplements implements IReporteInterfaces {
     @Override
     @Transactional(readOnly = true)
     public List<ReporteListDTO> listByArchivo(String correoUsuario, Long idArchivo) {
-        return obtenerReportesPermitidos(correoUsuario).stream()
-                .filter(reporte -> idArchivo.equals(obtenerIdArchivo(reporte.getPrediccionRiesgo())))
-                .map(this::convertToListDTO)
-                .collect(Collectors.toList());
+        return filtrar(correoUsuario, idArchivo, null, null, null, null);
     }
 
     @Override
@@ -354,6 +386,7 @@ public class ReporteServiceImplements implements IReporteInterfaces {
                     dto.setIdRegistro(registro.getIdRegistro());
                     dto.setAnio(registro.getAnio());
                     dto.setMes(registro.getMes());
+                    completarPeriodoPredicho(dto, registro);
                     dto.setServicioHospitalario(registro.getServicioHospitalario());
 
                     ArchivoCargado archivo = registro.getArchivoCargado();
@@ -361,11 +394,114 @@ public class ReporteServiceImplements implements IReporteInterfaces {
                     if (archivo != null) {
                         dto.setIdArchivo(archivo.getIdArchivo());
                         dto.setNombreArchivo(archivo.getNombreArchivo());
+                        if (archivo.getIpress() != null) {
+                            dto.setCodigoIpress(
+                                    archivo.getIpress().getCodigoRenipress()
+                            );
+                        }
                     }
                 }
             }
         }
 
         return dto;
+    }
+
+    private void completarPeriodoPredicho(
+            ReporteListDTO dto,
+            RegistroHospitalario registro
+    ) {
+        if (registro.getAnio() == null || registro.getMes() == null) {
+            return;
+        }
+
+        try {
+            YearMonth periodoPredicho = YearMonth.of(
+                    registro.getAnio(),
+                    registro.getMes()
+            ).plusMonths(1);
+            dto.setAnioPredicho(periodoPredicho.getYear());
+            dto.setMesPredicho(periodoPredicho.getMonthValue());
+        } catch (RuntimeException ignored) {
+            // El periodo base se conserva y el periodo predicho queda sin informar.
+        }
+    }
+
+    private boolean cumpleFiltroArchivo(Reporte reporte, Long idArchivo) {
+        return idArchivo == null
+                || Objects.equals(
+                        obtenerIdArchivo(reporte.getPrediccionRiesgo()),
+                        idArchivo
+                );
+    }
+
+    private boolean cumpleFiltroAnio(Reporte reporte, Integer anio) {
+        if (anio == null) {
+            return true;
+        }
+        RegistroHospitalario registro = obtenerRegistro(reporte);
+        return registro != null && Objects.equals(registro.getAnio(), anio);
+    }
+
+    private boolean cumpleFiltroMes(Reporte reporte, Integer mes) {
+        if (mes == null) {
+            return true;
+        }
+        RegistroHospitalario registro = obtenerRegistro(reporte);
+        return registro != null && Objects.equals(registro.getMes(), mes);
+    }
+
+    private boolean cumpleFiltroServicio(
+            Reporte reporte,
+            String servicioHospitalario
+    ) {
+        if (servicioHospitalario == null || servicioHospitalario.isBlank()) {
+            return true;
+        }
+        RegistroHospitalario registro = obtenerRegistro(reporte);
+        return registro != null
+                && registro.getServicioHospitalario() != null
+                && registro.getServicioHospitalario().equalsIgnoreCase(
+                        servicioHospitalario.trim()
+                );
+    }
+
+    private boolean cumpleFiltroRiesgo(
+            Reporte reporte,
+            String nivelRiesgo
+    ) {
+        if (nivelRiesgo == null) {
+            return true;
+        }
+        PrediccionRiesgo prediccion = reporte.getPrediccionRiesgo();
+        return prediccion != null
+                && prediccion.getNivelRiesgo() != null
+                && prediccion.getNivelRiesgo().equalsIgnoreCase(nivelRiesgo);
+    }
+
+    private String normalizarNivelRiesgo(String nivelRiesgo) {
+        if (nivelRiesgo == null || nivelRiesgo.isBlank()) {
+            return null;
+        }
+
+        String normalizado = nivelRiesgo.trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("BAJO", "MEDIO", "ALTO").contains(normalizado)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El nivel de riesgo debe ser BAJO, MEDIO o ALTO"
+            );
+        }
+        return normalizado;
+    }
+
+    private RegistroHospitalario obtenerRegistro(Reporte reporte) {
+        if (reporte == null
+                || reporte.getPrediccionRiesgo() == null
+                || reporte.getPrediccionRiesgo().getIndicadorHospitalario() == null) {
+            return null;
+        }
+        return reporte.getPrediccionRiesgo()
+                .getIndicadorHospitalario()
+                .getRegistroHospitalario();
     }
 }

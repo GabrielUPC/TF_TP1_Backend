@@ -7,9 +7,9 @@ import java.util.List;
 
 public interface IDashboardInterfaces {
 
-    DashboardResumenDTO obtenerResumenGeneral(String correoUsuario);
+    DashboardResumenDTO obtenerResumenGeneral(String correoUsuario, Long idArchivo);
 
-    List<DashboardDetalleDTO> obtenerDetalleGeneral(String correoUsuario);
+    List<DashboardDetalleDTO> obtenerDetalleGeneral(String correoUsuario, Long idArchivo);
 
     List<DashboardDetalleDTO> obtenerDetallePorArchivo(String correoUsuario, Long idArchivo);
 
@@ -17,10 +17,11 @@ public interface IDashboardInterfaces {
 
     List<DashboardDetalleDTO> filtrar(
             String correoUsuario,
+            Long idArchivo,
             Integer anio,
             Integer mes,
             String servicioHospitalario
     );
 
-    List<DashboardDetalleDTO> obtenerAlertas(String correoUsuario);
+    List<DashboardDetalleDTO> obtenerAlertas(String correoUsuario, Long idArchivo);
 }
