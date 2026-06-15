@@ -149,8 +149,13 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
         ModeloPrediccionResponseDTO respuesta = modeloClient.predecir(solicitud);
         String nivelRiesgo = validarNivelRiesgo(respuesta.getNivelRiesgoPredicho());
         Double probabilidad = validarProbabilidad(respuesta.getProbabilidad());
+        Double probabilidadRiesgoAlto = obtenerProbabilidadClase(
+                respuesta.getProbabilidadesPorClase(),
+                "alto"
+        );
 
         prediccion.setProbabilidad(probabilidad);
+        prediccion.setProbabilidadRiesgoAlto(probabilidadRiesgoAlto);
         prediccion.setNivelRiesgo(nivelRiesgo);
         prediccion.setModeloUtilizado("XGBoost - FastAPI");
         prediccion.setFechaPrediccion(LocalDateTime.now());
@@ -360,7 +365,23 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
         }
         return probabilidad;
     }
+    private Double obtenerProbabilidadClase(
+            Map<String, Double> probabilidadesPorClase,
+            String clase
+    ) {
+        if (probabilidadesPorClase == null || probabilidadesPorClase.isEmpty()) {
+            return 0.0;
+        }
 
+        for (Map.Entry<String, Double> entrada : probabilidadesPorClase.entrySet()) {
+            if (entrada.getKey() != null
+                    && entrada.getKey().equalsIgnoreCase(clase)) {
+                return validarProbabilidad(entrada.getValue());
+            }
+        }
+
+        return 0.0;
+    }
     private PrediccionRiesgoListDTO convertToListDTO(PrediccionRiesgo prediccion) {
 
         PrediccionRiesgoListDTO dto = new PrediccionRiesgoListDTO();

@@ -245,6 +245,7 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         dto.setIdPrediccion(prediccion.getIdPrediccion());
         dto.setNivelRiesgo(prediccion.getNivelRiesgo());
         dto.setProbabilidad(prediccion.getProbabilidad());
+        dto.setProbabilidadRiesgoAlto(prediccion.getProbabilidadRiesgoAlto());
         dto.setModeloUtilizado(prediccion.getModeloUtilizado());
         dto.setFechaPrediccion(prediccion.getFechaPrediccion());
 
@@ -272,6 +273,7 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
                 dto.setPacientesCama(registro.getPacientesCama());
                 dto.setCamasTotales(registro.getCamasTotales());
                 dto.setCamasDisponiblesHabilitadas(registro.getCamasDisponiblesHabilitadas());
+                dto.setTotalCamasDisponibles(registro.getTotalCamasDisponibles());
 
                 ArchivoCargado archivo = registro.getArchivoCargado();
 
