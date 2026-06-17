@@ -24,7 +24,7 @@ public class DashboardDetalleDTO {
     private Integer camasTotales;
     private Integer camasDisponiblesHabilitadas;
     private Integer totalCamasDisponibles;
-    private Double riesgoInsuficienciaCapacidad;
+
     private Double ocupacionEstimada;
     private Double presionIngresosCamas;
     private Double promedioEstancia;
@@ -33,6 +33,7 @@ public class DashboardDetalleDTO {
     private String nivelRiesgo;
     private Double probabilidad;
     private Double probabilidadRiesgoAlto;
+    private Double riesgoInsuficienciaCapacidad;
     private String modeloUtilizado;
     private LocalDateTime fechaPrediccion;
 
@@ -236,6 +237,13 @@ public class DashboardDetalleDTO {
     public void setProbabilidadRiesgoAlto(Double probabilidadRiesgoAlto) {
         this.probabilidadRiesgoAlto = probabilidadRiesgoAlto;
     }
+    public Double getRiesgoInsuficienciaCapacidad() {
+        return riesgoInsuficienciaCapacidad;
+    }
+
+    public void setRiesgoInsuficienciaCapacidad(Double riesgoInsuficienciaCapacidad) {
+        this.riesgoInsuficienciaCapacidad = riesgoInsuficienciaCapacidad;
+    }
     public String getModeloUtilizado() {
         return modeloUtilizado;
     }
@@ -266,13 +274,5 @@ public class DashboardDetalleDTO {
 
     public void setInterpretacion(String interpretacion) {
         this.interpretacion = interpretacion;
-    }
-
-    public Double getRiesgoInsuficienciaCapacidad() {
-        return riesgoInsuficienciaCapacidad;
-    }
-
-    public void setRiesgoInsuficienciaCapacidad(Double riesgoInsuficienciaCapacidad) {
-        this.riesgoInsuficienciaCapacidad = riesgoInsuficienciaCapacidad;
     }
 }

@@ -246,9 +246,6 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         dto.setNivelRiesgo(prediccion.getNivelRiesgo());
         dto.setProbabilidad(prediccion.getProbabilidad());
         dto.setProbabilidadRiesgoAlto(prediccion.getProbabilidadRiesgoAlto());
-        dto.setRiesgoInsuficienciaCapacidad(
-                prediccion.getRiesgoInsuficienciaCapacidad()
-        );
         dto.setModeloUtilizado(prediccion.getModeloUtilizado());
         dto.setFechaPrediccion(prediccion.getFechaPrediccion());
 
