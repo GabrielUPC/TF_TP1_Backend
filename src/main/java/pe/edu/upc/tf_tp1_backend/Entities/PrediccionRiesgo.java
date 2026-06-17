@@ -23,6 +23,9 @@ public class PrediccionRiesgo {
     @Column(name = "probabilidad")
     private Double probabilidad;
 
+    @Column(name = "riesgo_insuficiencia_capacidad")
+    private Double riesgoInsuficienciaCapacidad;
+
     @Column(name = "probabilidad_riesgo_alto")
     private Double probabilidadRiesgoAlto;
 
@@ -74,7 +77,13 @@ public class PrediccionRiesgo {
     public void setProbabilidadRiesgoAlto(Double probabilidadRiesgoAlto) {
         this.probabilidadRiesgoAlto = probabilidadRiesgoAlto;
     }
-    
+    public Double getRiesgoInsuficienciaCapacidad() {
+        return riesgoInsuficienciaCapacidad;
+    }
+
+    public void setRiesgoInsuficienciaCapacidad(Double riesgoInsuficienciaCapacidad) {
+        this.riesgoInsuficienciaCapacidad = riesgoInsuficienciaCapacidad;
+    }
     public String getModeloUtilizado() {
         return modeloUtilizado;
     }

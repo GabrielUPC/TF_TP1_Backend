@@ -24,7 +24,7 @@ public class DashboardDetalleDTO {
     private Integer camasTotales;
     private Integer camasDisponiblesHabilitadas;
     private Integer totalCamasDisponibles;
-
+    private Double riesgoInsuficienciaCapacidad;
     private Double ocupacionEstimada;
     private Double presionIngresosCamas;
     private Double promedioEstancia;
@@ -266,5 +266,13 @@ public class DashboardDetalleDTO {
 
     public void setInterpretacion(String interpretacion) {
         this.interpretacion = interpretacion;
+    }
+
+    public Double getRiesgoInsuficienciaCapacidad() {
+        return riesgoInsuficienciaCapacidad;
+    }
+
+    public void setRiesgoInsuficienciaCapacidad(Double riesgoInsuficienciaCapacidad) {
+        this.riesgoInsuficienciaCapacidad = riesgoInsuficienciaCapacidad;
     }
 }

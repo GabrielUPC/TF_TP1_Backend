@@ -13,6 +13,9 @@ public class ModeloPrediccionResponseDTO {
     @JsonProperty("periodo_predicho")
     private String periodoPredicho;
 
+    @JsonProperty("riesgo_insuficiencia_capacidad")
+    private Double riesgoInsuficienciaCapacidad;
+
     @JsonProperty("horizonte_prediccion")
     private String horizontePrediccion;
 
@@ -100,7 +103,13 @@ public class ModeloPrediccionResponseDTO {
     public void setVariablesPrincipales(List<ModeloVariablePrincipalDTO> variablesPrincipales) {
         this.variablesPrincipales = variablesPrincipales;
     }
+    public Double getRiesgoInsuficienciaCapacidad() {
+        return riesgoInsuficienciaCapacidad;
+    }
 
+    public void setRiesgoInsuficienciaCapacidad(Double riesgoInsuficienciaCapacidad) {
+        this.riesgoInsuficienciaCapacidad = riesgoInsuficienciaCapacidad;
+    }
     public String getAdvertenciaHistorial() {
         return advertenciaHistorial;
     }

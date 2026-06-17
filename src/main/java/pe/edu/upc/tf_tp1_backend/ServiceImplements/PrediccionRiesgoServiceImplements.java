@@ -153,9 +153,13 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
                 respuesta.getProbabilidadesPorClase(),
                 "alto"
         );
+        Double riesgoInsuficienciaCapacidad = validarProbabilidad(
+                respuesta.getRiesgoInsuficienciaCapacidad()
+        );
 
         prediccion.setProbabilidad(probabilidad);
         prediccion.setProbabilidadRiesgoAlto(probabilidadRiesgoAlto);
+        prediccion.setRiesgoInsuficienciaCapacidad(riesgoInsuficienciaCapacidad);
         prediccion.setNivelRiesgo(nivelRiesgo);
         prediccion.setModeloUtilizado("XGBoost - FastAPI");
         prediccion.setFechaPrediccion(LocalDateTime.now());
