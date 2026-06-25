@@ -34,6 +34,39 @@ public class ModeloPrediccionResponseDTO {
     @JsonProperty("variables_principales")
     private List<ModeloVariablePrincipalDTO> variablesPrincipales;
 
+    @JsonProperty("causa_principal_riesgo")
+    private String causaPrincipalRiesgo;
+
+    @JsonProperty("brecha_operativa")
+    private Integer brechaOperativa;
+
+    @JsonProperty("nivel_brecha_operativa")
+    private String nivelBrechaOperativa;
+
+    @JsonProperty("diagnostico_operativo")
+    private String diagnosticoOperativo;
+
+    @JsonProperty("recomendaciones_operativas")
+    private List<String> recomendacionesOperativas;
+
+    @JsonProperty("acciones_prioritarias")
+    private List<String> accionesPrioritarias;
+
+    @JsonProperty("interpretacion_modelo")
+    private String interpretacionModelo;
+
+    @JsonProperty("confianza_prediccion")
+    private Double confianzaPrediccion;
+
+    @JsonProperty("probabilidad_riesgo_bajo")
+    private Double probabilidadRiesgoBajo;
+
+    @JsonProperty("probabilidad_riesgo_medio")
+    private Double probabilidadRiesgoMedio;
+
+    @JsonProperty("probabilidad_riesgo_alto")
+    private Double probabilidadRiesgoAlto;
+
     @JsonProperty("advertencia_historial")
     private String advertenciaHistorial;
 
@@ -102,6 +135,94 @@ public class ModeloPrediccionResponseDTO {
 
     public void setVariablesPrincipales(List<ModeloVariablePrincipalDTO> variablesPrincipales) {
         this.variablesPrincipales = variablesPrincipales;
+    }
+
+    public String getCausaPrincipalRiesgo() {
+        return causaPrincipalRiesgo;
+    }
+
+    public void setCausaPrincipalRiesgo(String causaPrincipalRiesgo) {
+        this.causaPrincipalRiesgo = causaPrincipalRiesgo;
+    }
+
+    public Integer getBrechaOperativa() {
+        return brechaOperativa;
+    }
+
+    public void setBrechaOperativa(Integer brechaOperativa) {
+        this.brechaOperativa = brechaOperativa;
+    }
+
+    public String getNivelBrechaOperativa() {
+        return nivelBrechaOperativa;
+    }
+
+    public void setNivelBrechaOperativa(String nivelBrechaOperativa) {
+        this.nivelBrechaOperativa = nivelBrechaOperativa;
+    }
+
+    public String getDiagnosticoOperativo() {
+        return diagnosticoOperativo;
+    }
+
+    public void setDiagnosticoOperativo(String diagnosticoOperativo) {
+        this.diagnosticoOperativo = diagnosticoOperativo;
+    }
+
+    public List<String> getRecomendacionesOperativas() {
+        return recomendacionesOperativas;
+    }
+
+    public void setRecomendacionesOperativas(List<String> recomendacionesOperativas) {
+        this.recomendacionesOperativas = recomendacionesOperativas;
+    }
+
+    public List<String> getAccionesPrioritarias() {
+        return accionesPrioritarias;
+    }
+
+    public void setAccionesPrioritarias(List<String> accionesPrioritarias) {
+        this.accionesPrioritarias = accionesPrioritarias;
+    }
+
+    public String getInterpretacionModelo() {
+        return interpretacionModelo;
+    }
+
+    public void setInterpretacionModelo(String interpretacionModelo) {
+        this.interpretacionModelo = interpretacionModelo;
+    }
+
+    public Double getConfianzaPrediccion() {
+        return confianzaPrediccion;
+    }
+
+    public void setConfianzaPrediccion(Double confianzaPrediccion) {
+        this.confianzaPrediccion = confianzaPrediccion;
+    }
+
+    public Double getProbabilidadRiesgoBajo() {
+        return probabilidadRiesgoBajo;
+    }
+
+    public void setProbabilidadRiesgoBajo(Double probabilidadRiesgoBajo) {
+        this.probabilidadRiesgoBajo = probabilidadRiesgoBajo;
+    }
+
+    public Double getProbabilidadRiesgoMedio() {
+        return probabilidadRiesgoMedio;
+    }
+
+    public void setProbabilidadRiesgoMedio(Double probabilidadRiesgoMedio) {
+        this.probabilidadRiesgoMedio = probabilidadRiesgoMedio;
+    }
+
+    public Double getProbabilidadRiesgoAlto() {
+        return probabilidadRiesgoAlto;
+    }
+
+    public void setProbabilidadRiesgoAlto(Double probabilidadRiesgoAlto) {
+        this.probabilidadRiesgoAlto = probabilidadRiesgoAlto;
     }
     public Double getRiesgoInsuficienciaCapacidad() {
         return riesgoInsuficienciaCapacidad;

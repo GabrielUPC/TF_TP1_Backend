@@ -29,6 +29,12 @@ public class PrediccionRiesgo {
     @Column(name = "probabilidad_riesgo_alto")
     private Double probabilidadRiesgoAlto;
 
+    @Column(name = "probabilidad_riesgo_bajo")
+    private Double probabilidadRiesgoBajo;
+
+    @Column(name = "probabilidad_riesgo_medio")
+    private Double probabilidadRiesgoMedio;
+
     @Column(name = "modelo_utilizado", length = 100)
     private String modeloUtilizado;
 
@@ -76,6 +82,22 @@ public class PrediccionRiesgo {
 
     public void setProbabilidadRiesgoAlto(Double probabilidadRiesgoAlto) {
         this.probabilidadRiesgoAlto = probabilidadRiesgoAlto;
+    }
+
+    public Double getProbabilidadRiesgoBajo() {
+        return probabilidadRiesgoBajo;
+    }
+
+    public void setProbabilidadRiesgoBajo(Double probabilidadRiesgoBajo) {
+        this.probabilidadRiesgoBajo = probabilidadRiesgoBajo;
+    }
+
+    public Double getProbabilidadRiesgoMedio() {
+        return probabilidadRiesgoMedio;
+    }
+
+    public void setProbabilidadRiesgoMedio(Double probabilidadRiesgoMedio) {
+        this.probabilidadRiesgoMedio = probabilidadRiesgoMedio;
     }
     public Double getRiesgoInsuficienciaCapacidad() {
         return riesgoInsuficienciaCapacidad;

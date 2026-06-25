@@ -1,6 +1,7 @@
 package pe.edu.upc.tf_tp1_backend.DTOS;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class DashboardDetalleDTO {
 
@@ -32,6 +33,8 @@ public class DashboardDetalleDTO {
 
     private String nivelRiesgo;
     private Double probabilidad;
+    private Double probabilidadRiesgoBajo;
+    private Double probabilidadRiesgoMedio;
     private Double probabilidadRiesgoAlto;
     private Double riesgoInsuficienciaCapacidad;
     private String modeloUtilizado;
@@ -39,6 +42,14 @@ public class DashboardDetalleDTO {
 
     private String alerta;
     private String interpretacion;
+    private String causaPrincipalRiesgo;
+    private Integer brechaOperativa;
+    private String nivelBrechaOperativa;
+    private String diagnosticoOperativo;
+    private List<String> recomendacionesOperativas;
+    private List<String> accionesPrioritarias;
+    private String interpretacionModelo;
+    private Double confianzaPrediccion;
 
     public Integer getIdPrediccion() {
         return idPrediccion;
@@ -237,6 +248,22 @@ public class DashboardDetalleDTO {
     public void setProbabilidadRiesgoAlto(Double probabilidadRiesgoAlto) {
         this.probabilidadRiesgoAlto = probabilidadRiesgoAlto;
     }
+
+    public Double getProbabilidadRiesgoBajo() {
+        return probabilidadRiesgoBajo;
+    }
+
+    public void setProbabilidadRiesgoBajo(Double probabilidadRiesgoBajo) {
+        this.probabilidadRiesgoBajo = probabilidadRiesgoBajo;
+    }
+
+    public Double getProbabilidadRiesgoMedio() {
+        return probabilidadRiesgoMedio;
+    }
+
+    public void setProbabilidadRiesgoMedio(Double probabilidadRiesgoMedio) {
+        this.probabilidadRiesgoMedio = probabilidadRiesgoMedio;
+    }
     public Double getRiesgoInsuficienciaCapacidad() {
         return riesgoInsuficienciaCapacidad;
     }
@@ -274,5 +301,69 @@ public class DashboardDetalleDTO {
 
     public void setInterpretacion(String interpretacion) {
         this.interpretacion = interpretacion;
+    }
+
+    public String getCausaPrincipalRiesgo() {
+        return causaPrincipalRiesgo;
+    }
+
+    public void setCausaPrincipalRiesgo(String causaPrincipalRiesgo) {
+        this.causaPrincipalRiesgo = causaPrincipalRiesgo;
+    }
+
+    public Integer getBrechaOperativa() {
+        return brechaOperativa;
+    }
+
+    public void setBrechaOperativa(Integer brechaOperativa) {
+        this.brechaOperativa = brechaOperativa;
+    }
+
+    public String getNivelBrechaOperativa() {
+        return nivelBrechaOperativa;
+    }
+
+    public void setNivelBrechaOperativa(String nivelBrechaOperativa) {
+        this.nivelBrechaOperativa = nivelBrechaOperativa;
+    }
+
+    public String getDiagnosticoOperativo() {
+        return diagnosticoOperativo;
+    }
+
+    public void setDiagnosticoOperativo(String diagnosticoOperativo) {
+        this.diagnosticoOperativo = diagnosticoOperativo;
+    }
+
+    public List<String> getRecomendacionesOperativas() {
+        return recomendacionesOperativas;
+    }
+
+    public void setRecomendacionesOperativas(List<String> recomendacionesOperativas) {
+        this.recomendacionesOperativas = recomendacionesOperativas;
+    }
+
+    public List<String> getAccionesPrioritarias() {
+        return accionesPrioritarias;
+    }
+
+    public void setAccionesPrioritarias(List<String> accionesPrioritarias) {
+        this.accionesPrioritarias = accionesPrioritarias;
+    }
+
+    public String getInterpretacionModelo() {
+        return interpretacionModelo;
+    }
+
+    public void setInterpretacionModelo(String interpretacionModelo) {
+        this.interpretacionModelo = interpretacionModelo;
+    }
+
+    public Double getConfianzaPrediccion() {
+        return confianzaPrediccion;
+    }
+
+    public void setConfianzaPrediccion(Double confianzaPrediccion) {
+        this.confianzaPrediccion = confianzaPrediccion;
     }
 }

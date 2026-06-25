@@ -149,15 +149,16 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
         ModeloPrediccionResponseDTO respuesta = modeloClient.predecir(solicitud);
         String nivelRiesgo = validarNivelRiesgo(respuesta.getNivelRiesgoPredicho());
         Double probabilidad = validarProbabilidad(respuesta.getProbabilidad());
-        Double probabilidadRiesgoAlto = obtenerProbabilidadClase(
-                respuesta.getProbabilidadesPorClase(),
-                "alto"
-        );
+        Double probabilidadRiesgoBajo = obtenerProbabilidadRespuesta(respuesta, "bajo");
+        Double probabilidadRiesgoMedio = obtenerProbabilidadRespuesta(respuesta, "medio");
+        Double probabilidadRiesgoAlto = obtenerProbabilidadRespuesta(respuesta, "alto");
         Double riesgoInsuficienciaCapacidad = validarProbabilidad(
                 respuesta.getRiesgoInsuficienciaCapacidad()
         );
 
         prediccion.setProbabilidad(probabilidad);
+        prediccion.setProbabilidadRiesgoBajo(probabilidadRiesgoBajo);
+        prediccion.setProbabilidadRiesgoMedio(probabilidadRiesgoMedio);
         prediccion.setProbabilidadRiesgoAlto(probabilidadRiesgoAlto);
         prediccion.setRiesgoInsuficienciaCapacidad(riesgoInsuficienciaCapacidad);
         prediccion.setNivelRiesgo(nivelRiesgo);
@@ -385,6 +386,27 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
         }
 
         return 0.0;
+    }
+
+    private Double obtenerProbabilidadRespuesta(
+            ModeloPrediccionResponseDTO respuesta,
+            String clase
+    ) {
+        String claseNormalizada = clase.toLowerCase(Locale.ROOT);
+        Double valorExplicito = null;
+        if ("bajo".equals(claseNormalizada)) {
+            valorExplicito = respuesta.getProbabilidadRiesgoBajo();
+        } else if ("medio".equals(claseNormalizada)) {
+            valorExplicito = respuesta.getProbabilidadRiesgoMedio();
+        } else if ("alto".equals(claseNormalizada)) {
+            valorExplicito = respuesta.getProbabilidadRiesgoAlto();
+        }
+
+        if (valorExplicito != null) {
+            return validarProbabilidad(valorExplicito);
+        }
+
+        return obtenerProbabilidadClase(respuesta.getProbabilidadesPorClase(), clase);
     }
     private PrediccionRiesgoListDTO convertToListDTO(PrediccionRiesgo prediccion) {
 

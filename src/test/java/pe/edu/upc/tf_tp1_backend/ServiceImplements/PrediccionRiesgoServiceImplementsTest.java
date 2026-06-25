@@ -59,6 +59,10 @@ class PrediccionRiesgoServiceImplementsTest {
         ModeloPrediccionResponseDTO respuesta = new ModeloPrediccionResponseDTO();
         respuesta.setNivelRiesgoPredicho("alto");
         respuesta.setProbabilidad(0.87);
+        respuesta.setRiesgoInsuficienciaCapacidad(0.91);
+        respuesta.setProbabilidadRiesgoBajo(0.03);
+        respuesta.setProbabilidadRiesgoMedio(0.10);
+        respuesta.setProbabilidadRiesgoAlto(0.87);
 
         when(indicadorRepository.findById(10)).thenReturn(Optional.of(indicador));
         when(prediccionRepository.findByIndicadorHospitalario_IdIndicador(10))
@@ -125,6 +129,10 @@ class PrediccionRiesgoServiceImplementsTest {
         ModeloPrediccionResponseDTO respuesta = new ModeloPrediccionResponseDTO();
         respuesta.setNivelRiesgoPredicho("medio");
         respuesta.setProbabilidad(0.72);
+        respuesta.setRiesgoInsuficienciaCapacidad(0.56);
+        respuesta.setProbabilidadRiesgoBajo(0.12);
+        respuesta.setProbabilidadRiesgoMedio(0.72);
+        respuesta.setProbabilidadRiesgoAlto(0.16);
 
         when(indicadorRepository.findById(11)).thenReturn(Optional.of(indicador));
         when(prediccionRepository.findByIndicadorHospitalario_IdIndicador(11))

@@ -245,6 +245,8 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         dto.setIdPrediccion(prediccion.getIdPrediccion());
         dto.setNivelRiesgo(prediccion.getNivelRiesgo());
         dto.setProbabilidad(prediccion.getProbabilidad());
+        dto.setProbabilidadRiesgoBajo(prediccion.getProbabilidadRiesgoBajo());
+        dto.setProbabilidadRiesgoMedio(prediccion.getProbabilidadRiesgoMedio());
         dto.setProbabilidadRiesgoAlto(prediccion.getProbabilidadRiesgoAlto());
         dto.setRiesgoInsuficienciaCapacidad(prediccion.getRiesgoInsuficienciaCapacidad());
         dto.setModeloUtilizado(prediccion.getModeloUtilizado());
@@ -290,7 +292,17 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
             }
         }
 
-        dto.setAlerta(generarAlerta(prediccion.getNivelRiesgo()));
+        String causa = causaPrincipalRiesgo(prediccion);
+        Integer brecha = calcularBrechaOperativa(prediccion);
+        dto.setCausaPrincipalRiesgo(causa);
+        dto.setBrechaOperativa(brecha);
+        dto.setNivelBrechaOperativa(nivelBrechaOperativa(brecha));
+        dto.setDiagnosticoOperativo(generarDiagnosticoOperativo(prediccion, causa));
+        dto.setRecomendacionesOperativas(recomendacionesGestion(causa));
+        dto.setAccionesPrioritarias(accionesPrioritarias(causa, prediccion.getNivelRiesgo()));
+        dto.setInterpretacionModelo(generarInterpretacionModelo(prediccion));
+        dto.setConfianzaPrediccion(prediccion.getProbabilidad());
+        dto.setAlerta(generarAlerta(prediccion, causa));
         dto.setInterpretacion(generarInterpretacion(prediccion));
 
         return dto;
@@ -316,21 +328,231 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         }
     }
 
-    private String generarAlerta(String nivelRiesgo) {
+    private String generarAlerta(PrediccionRiesgo prediccion, String causa) {
+        String nivelRiesgo = prediccion.getNivelRiesgo();
 
         if (nivelRiesgo == null) {
             return "Sin alerta";
         }
 
         if (nivelRiesgo.equalsIgnoreCase("ALTO")) {
-            return "Alerta crítica: revisar capacidad asistencial del servicio hospitalario.";
+            return servicio(prediccion) + ": riesgo ALTO por "
+                    + causa.toLowerCase()
+                    + ". Acción sugerida: " + recomendacionBreve(causa);
         }
 
         if (nivelRiesgo.equalsIgnoreCase("MEDIO")) {
-            return "Alerta preventiva: monitorear indicadores de camas y demanda hospitalaria.";
+            return servicio(prediccion) + ": riesgo MEDIO por "
+                    + causa.toLowerCase()
+                    + ". Acción sugerida: " + recomendacionBreve(causa);
         }
 
         return "Sin alerta crítica.";
+    }
+
+    private String causaPrincipalRiesgo(PrediccionRiesgo prediccion) {
+        IndicadorHospitalario indicador = prediccion.getIndicadorHospitalario();
+        RegistroHospitalario registro = obtenerRegistro(prediccion);
+
+        if (valor(indicador == null ? null : indicador.getOcupacionEstimada()) >= 0.90) {
+            return "Ocupación crítica";
+        }
+        if (ratioCamasDisponibles(registro) <= 0.10) {
+            return "Capacidad disponible limitada";
+        }
+        if (balanceIngresosEgresos(registro) > 0) {
+            return "Demanda supera egresos";
+        }
+        if (valor(indicador == null ? null : indicador.getPromedioEstancia()) > 7) {
+            return "Estancia prolongada";
+        }
+        if (valor(indicador == null ? null : indicador.getPresionIngresosCamas()) > 1) {
+            return "Alta presión ingresos/camas";
+        }
+        if (valor(indicador == null ? null : indicador.getRotacionCamas()) < 1) {
+            return "Baja rotación de camas";
+        }
+        if (prediccion.getNivelRiesgo() != null
+                && prediccion.getNivelRiesgo().equalsIgnoreCase("BAJO")) {
+            return "Riesgo controlado";
+        }
+        return "Presión operativa multifactorial";
+    }
+
+    private Integer calcularBrechaOperativa(PrediccionRiesgo prediccion) {
+        IndicadorHospitalario indicador = prediccion.getIndicadorHospitalario();
+        int puntaje = 0;
+        String riesgo = prediccion.getNivelRiesgo();
+        if (riesgo != null && riesgo.equalsIgnoreCase("ALTO")) {
+            puntaje += 30;
+        } else if (riesgo != null && riesgo.equalsIgnoreCase("MEDIO")) {
+            puntaje += 15;
+        }
+
+        double ocupacion = valor(indicador == null ? null : indicador.getOcupacionEstimada());
+        if (ocupacion >= 0.90) {
+            puntaje += 25;
+        } else if (ocupacion >= 0.80) {
+            puntaje += 15;
+        }
+        if (valor(indicador == null ? null : indicador.getPresionIngresosCamas()) > 1) {
+            puntaje += 15;
+        }
+        if (balanceIngresosEgresos(obtenerRegistro(prediccion)) > 0) {
+            puntaje += 10;
+        }
+        if (valor(indicador == null ? null : indicador.getPromedioEstancia()) > 7) {
+            puntaje += 10;
+        }
+        if (valor(indicador == null ? null : indicador.getRotacionCamas()) < 1) {
+            puntaje += 5;
+        }
+        if (ratioCamasDisponibles(obtenerRegistro(prediccion)) <= 0.10) {
+            puntaje += 10;
+        }
+        return Math.min(puntaje, 100);
+    }
+
+    private String nivelBrechaOperativa(Integer brecha) {
+        if (brecha == null || brecha < 40) {
+            return "Brecha controlada";
+        }
+        if (brecha < 70) {
+            return "Brecha en observación";
+        }
+        return "Brecha crítica";
+    }
+
+    private String generarDiagnosticoOperativo(PrediccionRiesgo prediccion, String causa) {
+        String riesgo = prediccion.getNivelRiesgo() == null
+                ? "SIN DATOS"
+                : prediccion.getNivelRiesgo().toUpperCase();
+        return "Para el siguiente mes, el servicio evaluado presenta riesgo "
+                + riesgo
+                + " de insuficiencia de capacidad asistencial. La causa principal identificada es "
+                + causa.toLowerCase()
+                + ". Esto indica que la demanda hospitalaria podría ejercer presión sobre la capacidad registrada si la tendencia continúa.";
+    }
+
+    private List<String> recomendacionesGestion(String causa) {
+        if ("Ocupación crítica".equals(causa)) {
+            return List.of(
+                    "Activar seguimiento operativo del servicio.",
+                    "Revisar disponibilidad registrada y posibles camas no operativas.",
+                    "Verificar que las camas liberadas sean reportadas oportunamente.",
+                    "Comunicar alerta a gestión hospitalaria y servicios involucrados."
+            );
+        }
+        if ("Demanda supera egresos".equals(causa)) {
+            return List.of(
+                    "Revisar si los egresos programados compensan los ingresos esperados.",
+                    "Coordinar seguimiento de altas próximas.",
+                    "Revisar posibles demoras administrativas en egresos.",
+                    "Priorizar monitoreo del servicio."
+            );
+        }
+        if ("Estancia prolongada".equals(causa)) {
+            return List.of(
+                    "Identificar pacientes con permanencia elevada.",
+                    "Revisar posibles demoras en exámenes, interconsultas, trámites o traslados.",
+                    "Coordinar seguimiento de pacientes con estancia prolongada.",
+                    "Evaluar impacto de la estancia en la rotación de camas."
+            );
+        }
+        if ("Capacidad disponible limitada".equals(causa)) {
+            return List.of(
+                    "Verificar actualización de camas disponibles o habilitadas.",
+                    "Revisar si existen camas bloqueadas, en mantenimiento o no reportadas.",
+                    "Comunicar la limitación a gestión hospitalaria."
+            );
+        }
+        return List.of(
+                "Mantener monitoreo mensual del servicio.",
+                "Revisar indicadores de demanda y capacidad antes del siguiente mes.",
+                "Registrar acciones preventivas si el riesgo aumenta."
+        );
+    }
+
+    private List<String> accionesPrioritarias(String causa, String nivelRiesgo) {
+        if (nivelRiesgo != null
+                && (nivelRiesgo.equalsIgnoreCase("MEDIO")
+                || nivelRiesgo.equalsIgnoreCase("ALTO"))) {
+            return List.of(
+                    "Revisar servicio prioritario.",
+                    "Revisar causa principal del riesgo.",
+                    "Comunicar alerta preventiva a gestión hospitalaria.",
+                    "Registrar seguimiento de la recomendación operativa."
+            );
+        }
+        return List.of(
+                "Revisar servicio prioritario.",
+                "Mantener monitoreo mensual preventivo."
+        );
+    }
+
+    private String generarInterpretacionModelo(PrediccionRiesgo prediccion) {
+        String riesgo = prediccion.getNivelRiesgo() == null
+                ? "sin datos"
+                : prediccion.getNivelRiesgo();
+        double confianza = valor(prediccion.getProbabilidad()) * 100;
+        return "El modelo XGBoost - FastAPI clasifica el riesgo del siguiente mes como "
+                + riesgo
+                + " con confianza aproximada de "
+                + redondear(confianza)
+                + "%. El resultado es referencial y sirve como apoyo preventivo.";
+    }
+
+    private String recomendacionBreve(String causa) {
+        if ("Ocupación crítica".equals(causa)) {
+            return "revisar altas pendientes y seguimiento de camas liberadas.";
+        }
+        if ("Demanda supera egresos".equals(causa)) {
+            return "coordinar seguimiento de egresos y revisar demoras administrativas.";
+        }
+        if ("Estancia prolongada".equals(causa)) {
+            return "identificar permanencias elevadas y revisar demoras operativas.";
+        }
+        if ("Capacidad disponible limitada".equals(causa)) {
+            return "verificar camas disponibles o habilitadas registradas.";
+        }
+        return "mantener monitoreo preventivo del servicio.";
+    }
+
+    private String servicio(PrediccionRiesgo prediccion) {
+        RegistroHospitalario registro = obtenerRegistro(prediccion);
+        return registro == null || registro.getServicioHospitalario() == null
+                ? "Servicio"
+                : registro.getServicioHospitalario();
+    }
+
+    private int balanceIngresosEgresos(RegistroHospitalario registro) {
+        if (registro == null) {
+            return 0;
+        }
+        return valorEntero(registro.getIngresos()) - valorEntero(registro.getEgresos());
+    }
+
+    private double ratioCamasDisponibles(RegistroHospitalario registro) {
+        if (registro == null
+                || registro.getAnio() == null
+                || registro.getMes() == null
+                || valorEntero(registro.getCamasTotales()) <= 0) {
+            return 1.0;
+        }
+        int dias = YearMonth.of(registro.getAnio(), registro.getMes()).lengthOfMonth();
+        double capacidadMensual = valorEntero(registro.getCamasTotales()) * dias;
+        double camasDisponibles = registro.getTotalCamasDisponibles() != null
+                ? registro.getTotalCamasDisponibles()
+                : valorEntero(registro.getCamasDisponiblesHabilitadas()) * dias;
+        return capacidadMensual <= 0 ? 1.0 : camasDisponibles / capacidadMensual;
+    }
+
+    private double valor(Double valor) {
+        return valor == null ? 0.0 : valor;
+    }
+
+    private int valorEntero(Integer valor) {
+        return valor == null ? 0 : valor;
     }
 
     private String generarInterpretacion(PrediccionRiesgo prediccion) {
