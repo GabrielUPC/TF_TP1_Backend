@@ -47,7 +47,6 @@ public class DashboardDetalleDTO {
     private String nivelBrechaOperativa;
     private String diagnosticoOperativo;
     private List<String> recomendacionesOperativas;
-    private List<String> accionesPrioritarias;
     private String interpretacionModelo;
     private Double confianzaPrediccion;
 
@@ -341,14 +340,6 @@ public class DashboardDetalleDTO {
 
     public void setRecomendacionesOperativas(List<String> recomendacionesOperativas) {
         this.recomendacionesOperativas = recomendacionesOperativas;
-    }
-
-    public List<String> getAccionesPrioritarias() {
-        return accionesPrioritarias;
-    }
-
-    public void setAccionesPrioritarias(List<String> accionesPrioritarias) {
-        this.accionesPrioritarias = accionesPrioritarias;
     }
 
     public String getInterpretacionModelo() {

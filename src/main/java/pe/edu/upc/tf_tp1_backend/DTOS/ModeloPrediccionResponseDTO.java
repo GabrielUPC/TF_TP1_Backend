@@ -49,9 +49,6 @@ public class ModeloPrediccionResponseDTO {
     @JsonProperty("recomendaciones_operativas")
     private List<String> recomendacionesOperativas;
 
-    @JsonProperty("acciones_prioritarias")
-    private List<String> accionesPrioritarias;
-
     @JsonProperty("interpretacion_modelo")
     private String interpretacionModelo;
 
@@ -175,14 +172,6 @@ public class ModeloPrediccionResponseDTO {
 
     public void setRecomendacionesOperativas(List<String> recomendacionesOperativas) {
         this.recomendacionesOperativas = recomendacionesOperativas;
-    }
-
-    public List<String> getAccionesPrioritarias() {
-        return accionesPrioritarias;
-    }
-
-    public void setAccionesPrioritarias(List<String> accionesPrioritarias) {
-        this.accionesPrioritarias = accionesPrioritarias;
     }
 
     public String getInterpretacionModelo() {

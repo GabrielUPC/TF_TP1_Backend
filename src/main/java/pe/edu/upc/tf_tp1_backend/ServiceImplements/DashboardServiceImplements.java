@@ -299,7 +299,6 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         dto.setNivelBrechaOperativa(nivelBrechaOperativa(brecha));
         dto.setDiagnosticoOperativo(generarDiagnosticoOperativo(prediccion, causa));
         dto.setRecomendacionesOperativas(recomendacionesGestion(causa));
-        dto.setAccionesPrioritarias(accionesPrioritarias(causa, prediccion.getNivelRiesgo()));
         dto.setInterpretacionModelo(generarInterpretacionModelo(prediccion));
         dto.setConfianzaPrediccion(prediccion.getProbabilidad());
         dto.setAlerta(generarAlerta(prediccion, causa));
@@ -338,13 +337,13 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         if (nivelRiesgo.equalsIgnoreCase("ALTO")) {
             return servicio(prediccion) + ": riesgo ALTO por "
                     + causa.toLowerCase()
-                    + ". Acción sugerida: " + recomendacionBreve(causa);
+                    + ".";
         }
 
         if (nivelRiesgo.equalsIgnoreCase("MEDIO")) {
             return servicio(prediccion) + ": riesgo MEDIO por "
                     + causa.toLowerCase()
-                    + ". Acción sugerida: " + recomendacionBreve(causa);
+                    + ".";
         }
 
         return "Sin alerta crítica.";
@@ -437,56 +436,36 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
     private List<String> recomendacionesGestion(String causa) {
         if ("Ocupación crítica".equals(causa)) {
             return List.of(
-                    "Activar seguimiento operativo del servicio.",
-                    "Revisar disponibilidad registrada y posibles camas no operativas.",
-                    "Verificar que las camas liberadas sean reportadas oportunamente.",
-                    "Comunicar alerta a gestión hospitalaria y servicios involucrados."
+                    "Se recomienda revisar servicios con riesgo medio o alto.",
+                    "Puede considerarse verificar la actualización de camas disponibles o habilitadas.",
+                    "Conviene observar la ocupación estimada y la presión ingresos/camas."
             );
         }
         if ("Demanda supera egresos".equals(causa)) {
             return List.of(
-                    "Revisar si los egresos programados compensan los ingresos esperados.",
-                    "Coordinar seguimiento de altas próximas.",
-                    "Revisar posibles demoras administrativas en egresos.",
-                    "Priorizar monitoreo del servicio."
+                    "Se recomienda revisar la relación entre ingresos y egresos hospitalarios.",
+                    "Puede considerarse observar servicios con mayor diferencia ingresos-egresos.",
+                    "El resultado puede apoyar la coordinación hospitalaria correspondiente."
             );
         }
         if ("Estancia prolongada".equals(causa)) {
             return List.of(
-                    "Identificar pacientes con permanencia elevada.",
-                    "Revisar posibles demoras en exámenes, interconsultas, trámites o traslados.",
-                    "Coordinar seguimiento de pacientes con estancia prolongada.",
-                    "Evaluar impacto de la estancia en la rotación de camas."
+                    "Conviene observar servicios con estancia promedio prolongada.",
+                    "Se recomienda revisar el efecto de la estancia sobre la rotación de camas.",
+                    "El resultado puede apoyar la revisión de indicadores de demanda y capacidad."
             );
         }
         if ("Capacidad disponible limitada".equals(causa)) {
             return List.of(
-                    "Verificar actualización de camas disponibles o habilitadas.",
-                    "Revisar si existen camas bloqueadas, en mantenimiento o no reportadas.",
-                    "Comunicar la limitación a gestión hospitalaria."
+                    "Puede considerarse verificar la actualización de camas disponibles o habilitadas.",
+                    "Se recomienda revisar la capacidad mensual registrada.",
+                    "Conviene observar si la capacidad disponible se mantiene baja en el periodo."
             );
         }
         return List.of(
-                "Mantener monitoreo mensual del servicio.",
-                "Revisar indicadores de demanda y capacidad antes del siguiente mes.",
-                "Registrar acciones preventivas si el riesgo aumenta."
-        );
-    }
-
-    private List<String> accionesPrioritarias(String causa, String nivelRiesgo) {
-        if (nivelRiesgo != null
-                && (nivelRiesgo.equalsIgnoreCase("MEDIO")
-                || nivelRiesgo.equalsIgnoreCase("ALTO"))) {
-            return List.of(
-                    "Revisar servicio prioritario.",
-                    "Revisar causa principal del riesgo.",
-                    "Comunicar alerta preventiva a gestión hospitalaria.",
-                    "Registrar seguimiento de la recomendación operativa."
-            );
-        }
-        return List.of(
-                "Revisar servicio prioritario.",
-                "Mantener monitoreo mensual preventivo."
+                "Se recomienda revisar servicios con riesgo medio o alto.",
+                "Puede considerarse verificar la actualización de camas disponibles o habilitadas.",
+                "Conviene observar servicios con estancia promedio prolongada."
         );
     }
 
@@ -566,7 +545,7 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         }
 
         if (prediccion.getNivelRiesgo().equalsIgnoreCase("MEDIO")) {
-            return "El servicio presenta presión asistencial moderada y requiere seguimiento.";
+            return "El servicio presenta presión asistencial moderada y requiere revisión.";
         }
 
         return "El servicio presenta presión asistencial baja según los indicadores calculados.";
@@ -741,7 +720,7 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         }
 
         if ("MEDIO".equalsIgnoreCase(riesgoPredominante)) {
-            return "El dashboard evidencia predominio de riesgo medio. Se recomienda realizar seguimiento preventivo.";
+            return "El dashboard evidencia predominio de riesgo medio. Se recomienda realizar revisión hospitalaria.";
         }
 
         if ("BAJO".equalsIgnoreCase(riesgoPredominante)) {
