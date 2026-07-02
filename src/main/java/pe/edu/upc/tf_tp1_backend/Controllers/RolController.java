@@ -16,7 +16,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/roles")
-@CrossOrigin(origins = "http://localhost:4200")
 public class RolController {
 
     private static final String ROL_ADMINISTRADOR = "ADMINISTRADOR";

@@ -12,7 +12,6 @@ import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IExcelHospitalarioInterfaces;
 
 @RestController
 @RequestMapping("/excel-hospitalario")
-@CrossOrigin(origins = "http://localhost:4200")
 public class ExcelHospitalarioController {
 
     @Autowired
