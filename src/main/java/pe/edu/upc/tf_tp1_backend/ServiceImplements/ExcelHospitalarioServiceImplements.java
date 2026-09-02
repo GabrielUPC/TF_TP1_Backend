@@ -1,5 +1,7 @@
 package pe.edu.upc.tf_tp1_backend.ServiceImplements;
 
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
@@ -23,16 +25,23 @@ import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.ResultadoDeteccionFormato;
 import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.ResultadoTransformacionHospitalaria;
 import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.TransformadorD1;
 import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.TransformadorFormatoInterno;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.TratamientoCalidadDatosHospitalarios;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.ResultadoTratamientoCalidad;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.HallazgoCalidadImportado;
 import pe.edu.upc.tf_tp1_backend.DTOS.ErrorValidacionDTO;
 import pe.edu.upc.tf_tp1_backend.DTOS.ResumenCargaExcelDTO;
 import pe.edu.upc.tf_tp1_backend.Entities.ArchivoCargado;
 import pe.edu.upc.tf_tp1_backend.Entities.Ipress;
 import pe.edu.upc.tf_tp1_backend.Entities.RegistroHospitalario;
 import pe.edu.upc.tf_tp1_backend.Entities.Usuario;
+import pe.edu.upc.tf_tp1_backend.Entities.HallazgoCalidadDatos;
+import pe.edu.upc.tf_tp1_backend.Entities.RegistroPendienteCalidadDatos;
 import pe.edu.upc.tf_tp1_backend.Repositories.IArchivoCargadoRepository;
 import pe.edu.upc.tf_tp1_backend.Repositories.IIpressRepository;
 import pe.edu.upc.tf_tp1_backend.Repositories.IRegistroHospitalarioRepository;
 import pe.edu.upc.tf_tp1_backend.Repositories.IUsuarioRepository;
+import pe.edu.upc.tf_tp1_backend.Repositories.IHallazgoCalidadDatosRepository;
+import pe.edu.upc.tf_tp1_backend.Repositories.IRegistroPendienteCalidadDatosRepository;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IExcelHospitalarioInterfaces;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IIndicadorHospitalarioInterfaces;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IPrediccionRiesgoInterfaces;
@@ -44,6 +53,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class ExcelHospitalarioServiceImplements
@@ -86,6 +97,11 @@ public class ExcelHospitalarioServiceImplements
 
     @Autowired
     private ConsolidadorRegistrosHospitalarios consolidador;
+    @Autowired private TratamientoCalidadDatosHospitalarios tratamientoCalidad;
+    @Autowired private IHallazgoCalidadDatosRepository hallazgoCalidadRepository;
+    @Autowired private IRegistroPendienteCalidadDatosRepository registroPendienteRepository;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public byte[] generarPlantillaExcel() {
@@ -192,9 +208,20 @@ public class ExcelHospitalarioServiceImplements
                         ? transformadorD1.transformar(contenido, ipress)
                         : transformadorInterno.transformar(contenido, ipress);
 
+        ResultadoTratamientoCalidad tratamiento = tratamientoCalidad.aplicar(
+                transformacion.getRegistros()
+        );
+        persistirHallazgos(archivoCargado, tratamiento.hallazgos());
+        persistirRegistrosPendientes(archivoCargado, tratamiento);
+        prediccionService.invalidarPorPendientes(tratamiento.hallazgos());
+        if (tratamiento.gruposPendientes() > 0) {
+            transformacion.getAdvertencias().add(
+                    tratamiento.gruposPendientes() + " grupos quedaron sin prediccion: datos pendientes de validacion Q05/Q06."
+            );
+        }
         List<RegistroHospitalarioImportado> consolidados =
                 consolidador.consolidar(
-                        transformacion.getRegistros(),
+                        tratamiento.registrosValidos(),
                         transformacion.getAdvertencias()
                 );
         transformacion.setRegistros(consolidados);
@@ -210,13 +237,25 @@ public class ExcelHospitalarioServiceImplements
         }
 
         if (consolidados.isEmpty()) {
-            return respuestaSinRegistros(
+            if (tratamiento.gruposPendientes() == 0) {
+                return respuestaSinRegistros(
+                        archivoCargado, contenido, deteccion, transformacion,
+                        "No se encontraron registros validos para procesar."
+                );
+            }
+            archivoCargado.setEstadoValidacion("PENDIENTE_VALIDACION");
+            archivoCargado.setEstadoProcesamiento("SIN_PREDICCIONES");
+            archivoRepository.save(archivoCargado);
+            ResumenCargaExcelDTO sinValidos = construirResumen(
                     archivoCargado,
                     contenido,
                     deteccion,
                     transformacion,
-                    "No se encontraron registros hospitalarios validos para procesar."
+                    0,
+                    0,
+                    "Sin prediccion: datos pendientes de validacion."
             );
+            return agregarPendientes(sinValidos, tratamiento);
         }
 
         completarDatosIpress(ipress, consolidados.get(0));
@@ -234,8 +273,9 @@ public class ExcelHospitalarioServiceImplements
                 usuarioSolicitado.getIdUsuario()
         );
 
-        archivoCargado.setEstadoValidacion("VALIDADO");
-        archivoCargado.setEstadoProcesamiento("PROCESADO");
+        boolean parcial = tratamiento.gruposPendientes() > 0;
+        archivoCargado.setEstadoValidacion(parcial ? "VALIDADO_CON_PENDIENTES" : "VALIDADO");
+        archivoCargado.setEstadoProcesamiento(parcial ? "PROCESADO_PARCIAL" : "PROCESADO");
         archivoRepository.save(archivoCargado);
 
         String mensaje = "Archivo procesado correctamente. Formato detectado: "
@@ -243,7 +283,7 @@ public class ExcelHospitalarioServiceImplements
                 + ". Registros validos: " + registros.size()
                 + ". Predicciones generadas: " + registros.size() + ".";
 
-        return construirResumen(
+        ResumenCargaExcelDTO resumen = construirResumen(
                 archivoCargado,
                 contenido,
                 deteccion,
@@ -252,6 +292,7 @@ public class ExcelHospitalarioServiceImplements
                 registros.size(),
                 mensaje
         );
+        return agregarPendientes(resumen, tratamiento);
     }
 
     private void validarArchivo(MultipartFile archivo) {
@@ -503,6 +544,9 @@ public class ExcelHospitalarioServiceImplements
         dto.setTotalFilasInvalidas(transformacion.getTotalFilasInvalidas());
         dto.setTotalRegistrosValidos(totalRegistrosValidos);
         dto.setTotalPrediccionesGeneradas(totalPredicciones);
+        dto.setTotalGruposPendientes(0);
+        dto.setTotalRegistrosPendientes(0);
+        dto.setPendientesCalidad(List.of());
         dto.setRegistrosValidos(totalRegistrosValidos);
         dto.setRegistrosConErrores(transformacion.getTotalFilasInvalidas());
         dto.setErrores(new ArrayList<>(transformacion.getErrores()));
@@ -516,6 +560,100 @@ public class ExcelHospitalarioServiceImplements
         );
         dto.setMensaje(mensaje);
         return dto;
+    }
+
+    private void persistirHallazgos(ArchivoCargado archivo, List<HallazgoCalidadImportado> hallazgos) {
+        List<HallazgoCalidadDatos> entidades = hallazgos.stream().map(h -> {
+            HallazgoCalidadDatos e = new HallazgoCalidadDatos();
+            e.setArchivoCargado(archivo); e.setFilaOrigen(h.fila()); e.setCodigoIpress(h.codigoIpress());
+            e.setAnio(h.anio()); e.setMes(h.mes()); e.setServicioHospitalario(h.servicioHospitalario());
+            e.setRegla(h.regla()); e.setDescripcion(h.descripcion()); e.setEstado("PENDIENTE_VALIDACION");
+            e.setVersionPolitica(TratamientoCalidadDatosHospitalarios.VERSION_POLITICA);
+            e.setFechaDeteccion(LocalDateTime.now()); return e;
+        }).toList();
+        if (!entidades.isEmpty()) hallazgoCalidadRepository.saveAll(entidades);
+    }
+
+    private ResumenCargaExcelDTO agregarPendientes(ResumenCargaExcelDTO dto, ResultadoTratamientoCalidad tratamiento) {
+        dto.setTotalGruposPendientes(tratamiento.gruposPendientes());
+        dto.setTotalRegistrosPendientes(tratamiento.registrosPendientes().size());
+        Map<String, List<HallazgoCalidadImportado>> hallazgosPorGrupo = tratamiento.hallazgos().stream()
+                .collect(Collectors.groupingBy(this::claveHallazgo));
+        dto.setPendientesCalidad(tratamiento.registrosPendientes().stream().map(registro -> {
+            List<HallazgoCalidadImportado> hallazgos = hallazgosPorGrupo.getOrDefault(
+                    claveRegistro(registro),
+                    List.of()
+            );
+            pe.edu.upc.tf_tp1_backend.DTOS.PendienteCalidadDTO p = new pe.edu.upc.tf_tp1_backend.DTOS.PendienteCalidadDTO();
+            p.setFila(registro.getNumeroFila()); p.setCodigoIpress(registro.getCodigoIpress());
+            p.setAnio(registro.getAnio()); p.setMes(registro.getMes());
+            p.setServicioHospitalario(registro.getServicioHospitalario());
+            p.setRegla(hallazgos.stream().map(HallazgoCalidadImportado::regla).distinct()
+                    .collect(Collectors.joining(", ")));
+            p.setMotivo(hallazgos.stream().map(HallazgoCalidadImportado::descripcion).distinct()
+                    .collect(Collectors.joining(" ")));
+            p.setEstado("PENDIENTE_VALIDACION"); return p;
+        }).toList());
+        return dto;
+    }
+
+    private void persistirRegistrosPendientes(
+            ArchivoCargado archivo,
+            ResultadoTratamientoCalidad tratamiento
+    ) {
+        Map<String, List<HallazgoCalidadImportado>> hallazgosPorGrupo = tratamiento.hallazgos().stream()
+                .collect(Collectors.groupingBy(this::claveHallazgo));
+        List<RegistroPendienteCalidadDatos> entidades = tratamiento.registrosPendientes().stream()
+                .map(registro -> {
+                    List<HallazgoCalidadImportado> hallazgos = hallazgosPorGrupo.getOrDefault(
+                            claveRegistro(registro),
+                            List.of()
+                    );
+                    RegistroPendienteCalidadDatos entidad = new RegistroPendienteCalidadDatos();
+                    entidad.setArchivoCargado(archivo);
+                    entidad.setFilaOrigen(registro.getNumeroFila());
+                    entidad.setCodigoIpress(registro.getCodigoIpress());
+                    entidad.setAnio(registro.getAnio());
+                    entidad.setMes(registro.getMes());
+                    entidad.setServicioHospitalario(registro.getServicioHospitalario());
+                    entidad.setReglas(hallazgos.stream().map(HallazgoCalidadImportado::regla)
+                            .distinct().collect(Collectors.joining(",")));
+                    entidad.setMotivo(hallazgos.stream().map(HallazgoCalidadImportado::descripcion)
+                            .distinct().collect(Collectors.joining(" ")));
+                    entidad.setVersionPolitica(TratamientoCalidadDatosHospitalarios.VERSION_POLITICA);
+                    entidad.setEstado("PENDIENTE_VALIDACION");
+                    entidad.setFechaDeteccion(LocalDateTime.now());
+                    entidad.setDatosRegistroJson(serializarRegistro(registro));
+                    return entidad;
+                }).toList();
+        if (!entidades.isEmpty()) {
+            registroPendienteRepository.saveAll(entidades);
+        }
+    }
+
+    private String serializarRegistro(RegistroHospitalarioImportado registro) {
+        try {
+            return objectMapper.writeValueAsString(registro);
+        } catch (JacksonException error) {
+            throw new IllegalStateException(
+                    "No se pudo conservar el registro pendiente de calidad",
+                    error
+            );
+        }
+    }
+
+    private String claveHallazgo(HallazgoCalidadImportado hallazgo) {
+        return normalizarClave(hallazgo.codigoIpress()) + "|" + hallazgo.anio() + "|"
+                + hallazgo.mes() + "|" + normalizarClave(hallazgo.servicioHospitalario());
+    }
+
+    private String claveRegistro(RegistroHospitalarioImportado registro) {
+        return normalizarClave(registro.getCodigoIpress()) + "|" + registro.getAnio() + "|"
+                + registro.getMes() + "|" + normalizarClave(registro.getServicioHospitalario());
+    }
+
+    private String normalizarClave(String valor) {
+        return valor == null ? "" : valor.trim().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
     }
 
     private ErrorValidacionDTO crearError(

@@ -18,6 +18,7 @@ import pe.edu.upc.tf_tp1_backend.Entities.RegistroHospitalario;
 import pe.edu.upc.tf_tp1_backend.Repositories.IIndicadorHospitalarioRepository;
 import pe.edu.upc.tf_tp1_backend.Repositories.IPrediccionRiesgoRepository;
 import pe.edu.upc.tf_tp1_backend.Repositories.IRegistroHospitalarioRepository;
+import pe.edu.upc.tf_tp1_backend.Repositories.IHallazgoCalidadDatosRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -41,6 +42,7 @@ class PrediccionRiesgoServiceImplementsTest {
 
     @Mock
     private ModeloPredictivoClientService modeloClient;
+    @Mock private IHallazgoCalidadDatosRepository hallazgoCalidadRepository;
 
     @InjectMocks
     private PrediccionRiesgoServiceImplements service;
@@ -204,6 +206,24 @@ class PrediccionRiesgoServiceImplementsTest {
         assertEquals(2017, dto.getAnioPredicho());
         assertEquals(1, dto.getMesPredicho());
         assertEquals("HOSPITALIZACION GENERAL", dto.getServicioHospitalario());
+    }
+
+    @Test
+    void invalidaPrediccionActualYLaQueApuntaAlMesPendienteSinBorrarlas() {
+        Ipress ipress=crearIpress();
+        RegistroHospitalario enero=crearRegistro(50,2026,1,ipress);
+        RegistroHospitalario febrero=crearRegistro(51,2026,2,ipress);
+        PrediccionRiesgo pEnero=prediccion(enero); PrediccionRiesgo pFebrero=prediccion(febrero);
+        when(prediccionRepository.findAll()).thenReturn(List.of(pEnero,pFebrero));
+        service.invalidarPorPendientes(List.of(new pe.edu.upc.tf_tp1_backend.CargaHospitalaria.HallazgoCalidadImportado(
+                7,"00006207",2026,2,"HOSPITALIZACION GENERAL","Q05","pendiente")));
+        assertEquals(false,pEnero.getVigente()); assertEquals(false,pFebrero.getVigente());
+        verify(prediccionRepository).saveAll(List.of(pEnero,pFebrero));
+    }
+
+    private PrediccionRiesgo prediccion(RegistroHospitalario r) {
+        IndicadorHospitalario i=new IndicadorHospitalario(); i.setRegistroHospitalario(r);
+        PrediccionRiesgo p=new PrediccionRiesgo(); p.setIndicadorHospitalario(i); return p;
     }
 
     private Ipress crearIpress() {

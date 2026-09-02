@@ -17,7 +17,9 @@ import pe.edu.upc.tf_tp1_backend.Entities.RegistroHospitalario;
 import pe.edu.upc.tf_tp1_backend.Repositories.IIndicadorHospitalarioRepository;
 import pe.edu.upc.tf_tp1_backend.Repositories.IPrediccionRiesgoRepository;
 import pe.edu.upc.tf_tp1_backend.Repositories.IRegistroHospitalarioRepository;
+import pe.edu.upc.tf_tp1_backend.Repositories.IHallazgoCalidadDatosRepository;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IPrediccionRiesgoInterfaces;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.HallazgoCalidadImportado;
 
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -43,6 +45,8 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
 
     @Autowired
     private ModeloPredictivoClientService modeloClient;
+    @Autowired
+    private IHallazgoCalidadDatosRepository hallazgoCalidadRepository;
 
     @Override
     @Transactional
@@ -79,6 +83,7 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
     @Transactional(readOnly = true)
     public List<PrediccionRiesgoListDTO> list() {
         return pR.findAll().stream()
+                .filter(this::esVigente)
                 .map(this::convertToListDTO)
                 .collect(Collectors.toList());
     }
@@ -113,6 +118,7 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
     @Transactional(readOnly = true)
     public List<PrediccionRiesgoListDTO> listByArchivo(Long idArchivo) {
         return pR.findByIndicadorHospitalario_RegistroHospitalario_ArchivoCargado_IdArchivo(idArchivo).stream()
+                .filter(this::esVigente)
                 .map(this::convertToListDTO)
                 .collect(Collectors.toList());
     }
@@ -144,6 +150,10 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
                     "El indicador no tiene un registro hospitalario asociado"
             );
         }
+        if (esPeriodoPendiente(registro)) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Sin prediccion: datos pendientes de validacion Q05/Q06.");
+        }
 
         ModeloPrediccionRequestDTO solicitud = construirSolicitud(registro);
         ModeloPrediccionResponseDTO respuesta = modeloClient.predecir(solicitud);
@@ -164,6 +174,8 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
         prediccion.setNivelRiesgo(nivelRiesgo);
         prediccion.setModeloUtilizado("XGBoost - FastAPI");
         prediccion.setFechaPrediccion(LocalDateTime.now());
+        prediccion.setVigente(true);
+        prediccion.setMotivoNoVigente(null);
 
         pR.save(prediccion);
     }
@@ -210,6 +222,9 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
             if (!periodosBuscados.contains(periodo)) {
                 continue;
             }
+            if (esPeriodoPendiente(candidato)) {
+                continue;
+            }
 
             registroPorPeriodo.merge(
                     periodo,
@@ -235,6 +250,17 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
         int idPrimero = primero.getIdRegistro() == null ? 0 : primero.getIdRegistro();
         int idSegundo = segundo.getIdRegistro() == null ? 0 : segundo.getIdRegistro();
         return idSegundo > idPrimero ? segundo : primero;
+    }
+
+    private boolean esPeriodoPendiente(RegistroHospitalario registro) {
+        ArchivoCargado archivo = registro.getArchivoCargado();
+        Ipress ipress = archivo == null ? null : archivo.getIpress();
+        if (ipress == null || ipress.getIdIpress() == null || registro.getAnio() == null
+                || registro.getMes() == null || registro.getServicioHospitalario() == null) return false;
+        return hallazgoCalidadRepository
+                .existsByArchivoCargado_Ipress_IdIpressAndAnioAndMesAndServicioHospitalarioIgnoreCaseAndEstado(
+                        ipress.getIdIpress(), registro.getAnio(), registro.getMes(),
+                        normalizar(registro.getServicioHospitalario()), "PENDIENTE_VALIDACION");
     }
 
     private YearMonth obtenerPeriodo(RegistroHospitalario registro) {
@@ -417,6 +443,8 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
         dto.setProbabilidad(prediccion.getProbabilidad());
         dto.setModeloUtilizado(prediccion.getModeloUtilizado());
         dto.setFechaPrediccion(prediccion.getFechaPrediccion());
+        dto.setVigente(esVigente(prediccion));
+        dto.setMotivoNoVigente(prediccion.getMotivoNoVigente());
 
         IndicadorHospitalario indicador = prediccion.getIndicadorHospitalario();
 
@@ -458,6 +486,30 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
 
         return dto;
     }
+
+    @Override
+    @Transactional
+    public void invalidarPorPendientes(List<HallazgoCalidadImportado> pendientes) {
+        if (pendientes == null || pendientes.isEmpty()) return;
+        List<PrediccionRiesgo> cambiadas = pR.findAll().stream().filter(p -> coincidePendiente(p, pendientes))
+                .peek(p -> { p.setVigente(false); p.setMotivoNoVigente("Sin prediccion vigente: datos pendientes de validacion Q05/Q06."); })
+                .toList();
+        if (!cambiadas.isEmpty()) pR.saveAll(cambiadas);
+    }
+
+    private boolean esVigente(PrediccionRiesgo p) { return !Boolean.FALSE.equals(p.getVigente()); }
+
+    private boolean coincidePendiente(PrediccionRiesgo prediccion, List<HallazgoCalidadImportado> pendientes) {
+        RegistroHospitalario r = prediccion.getIndicadorHospitalario() == null ? null : prediccion.getIndicadorHospitalario().getRegistroHospitalario();
+        if (r == null || r.getArchivoCargado() == null || r.getArchivoCargado().getIpress() == null) return false;
+        String codigo = r.getArchivoCargado().getIpress().getCodigoRenipress();
+        YearMonth actual = obtenerPeriodo(r);
+        return pendientes.stream().anyMatch(h -> normalizar(h.codigoIpress()).equals(normalizar(codigo))
+                && normalizar(h.servicioHospitalario()).equals(normalizar(r.getServicioHospitalario()))
+                && (YearMonth.of(h.anio(),h.mes()).equals(actual) || YearMonth.of(h.anio(),h.mes()).equals(actual.plusMonths(1))));
+    }
+
+    private String normalizar(String v) { return v == null ? "" : v.trim().replaceAll("\\s+"," ").toUpperCase(Locale.ROOT); }
 
     private void completarPeriodoPredicho(
             PrediccionRiesgoListDTO dto,

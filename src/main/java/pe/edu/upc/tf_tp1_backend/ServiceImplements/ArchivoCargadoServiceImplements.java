@@ -61,9 +61,10 @@ public class ArchivoCargadoServiceImplements implements IArchivoCargadoInterface
         return archivoCargadoRepository.findByIpress_IdIpress(
                         usuario.getIpress().getIdIpress()
                 ).stream()
-                .filter(archivo -> "PROCESADO".equalsIgnoreCase(
-                        archivo.getEstadoProcesamiento()
-                ))
+                .filter(archivo -> Set.of("PROCESADO", "PROCESADO_PARCIAL")
+                        .stream().anyMatch(estado -> estado.equalsIgnoreCase(
+                                archivo.getEstadoProcesamiento()
+                        )))
                 .sorted(Comparator.comparing(
                         ArchivoCargado::getFechaCarga,
                         Comparator.nullsLast(Comparator.reverseOrder())
@@ -158,11 +159,13 @@ public class ArchivoCargadoServiceImplements implements IArchivoCargadoInterface
         dto.setFormatoDetectado(archivo.getFormato());
         dto.setRegistrosValidos(registros.size());
         dto.setPrediccionesGeneradas(
-                prediccionRiesgoRepository
+                Math.toIntExact(prediccionRiesgoRepository
                         .findByIndicadorHospitalario_RegistroHospitalario_ArchivoCargado_IdArchivo(
                                 archivo.getIdArchivo()
                         )
-                        .size()
+                        .stream()
+                        .filter(prediccion -> !Boolean.FALSE.equals(prediccion.getVigente()))
+                        .count())
         );
 
         registros.stream()

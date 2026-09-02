@@ -47,7 +47,7 @@ public class ModeloPredictivoClientService {
         } catch (RestClientResponseException error) {
             String detalle = limitarDetalle(error.getResponseBodyAsString());
             throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
+                    error.getStatusCode().value() == 422 ? HttpStatus.UNPROCESSABLE_ENTITY : HttpStatus.BAD_GATEWAY,
                     "El microservicio del modelo rechazo la prediccion con estado "
                             + error.getStatusCode().value()
                             + (detalle.isBlank() ? "" : ": " + detalle),

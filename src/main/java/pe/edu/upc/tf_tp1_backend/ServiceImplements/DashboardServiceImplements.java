@@ -157,6 +157,7 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         Long idIpress = usuario.getIpress().getIdIpress();
 
         return pR.findAll().stream()
+                .filter(prediccion -> !Boolean.FALSE.equals(prediccion.getVigente()))
                 .filter(prediccion -> perteneceAIpress(prediccion, idIpress))
                 .collect(Collectors.toList());
     }

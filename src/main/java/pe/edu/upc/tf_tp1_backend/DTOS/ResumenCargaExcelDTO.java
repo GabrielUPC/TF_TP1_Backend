@@ -18,6 +18,9 @@ public class ResumenCargaExcelDTO {
     private Integer totalFilasInvalidas;
     private Integer totalRegistrosValidos;
     private Integer totalPrediccionesGeneradas;
+    private Integer totalGruposPendientes;
+    private Integer totalRegistrosPendientes;
+    private List<PendienteCalidadDTO> pendientesCalidad;
     private List<String> advertencias;
     private List<String> columnasEncontradas;
     private List<String> columnasMinimasFormatoInterno;
@@ -121,6 +124,12 @@ public class ResumenCargaExcelDTO {
     public void setTotalPrediccionesGeneradas(Integer totalPrediccionesGeneradas) {
         this.totalPrediccionesGeneradas = totalPrediccionesGeneradas;
     }
+    public Integer getTotalGruposPendientes(){return totalGruposPendientes;}
+    public void setTotalGruposPendientes(Integer v){totalGruposPendientes=v;}
+    public Integer getTotalRegistrosPendientes(){return totalRegistrosPendientes;}
+    public void setTotalRegistrosPendientes(Integer v){totalRegistrosPendientes=v;}
+    public List<PendienteCalidadDTO> getPendientesCalidad(){return pendientesCalidad;}
+    public void setPendientesCalidad(List<PendienteCalidadDTO> v){pendientesCalidad=v;}
 
     public List<String> getAdvertencias() {
         return advertencias;

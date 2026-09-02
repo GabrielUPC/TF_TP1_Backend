@@ -34,6 +34,8 @@ public class PrediccionRiesgoListDTO {
     private Double probabilidad;
     private String modeloUtilizado;
     private LocalDateTime fechaPrediccion;
+    private Boolean vigente;
+    private String motivoNoVigente;
 
     public Integer getIdPrediccion() {
         return idPrediccion;
@@ -234,4 +236,8 @@ public class PrediccionRiesgoListDTO {
     public void setFechaPrediccion(LocalDateTime fechaPrediccion) {
         this.fechaPrediccion = fechaPrediccion;
     }
+    public Boolean getVigente(){return vigente;}
+    public void setVigente(Boolean v){vigente=v;}
+    public String getMotivoNoVigente(){return motivoNoVigente;}
+    public void setMotivoNoVigente(String v){motivoNoVigente=v;}
 }

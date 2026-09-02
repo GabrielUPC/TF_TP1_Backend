@@ -7,6 +7,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "prediccion_riesgo")
 public class PrediccionRiesgo {
+    @Column(name = "vigente")
+    private Boolean vigente = true;
+    @Column(name = "motivo_no_vigente", length = 1000)
+    private String motivoNoVigente;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -83,6 +87,10 @@ public class PrediccionRiesgo {
     public void setProbabilidadRiesgoAlto(Double probabilidadRiesgoAlto) {
         this.probabilidadRiesgoAlto = probabilidadRiesgoAlto;
     }
+    public Boolean getVigente(){return vigente;}
+    public void setVigente(Boolean v){vigente=v;}
+    public String getMotivoNoVigente(){return motivoNoVigente;}
+    public void setMotivoNoVigente(String v){motivoNoVigente=v;}
 
     public Double getProbabilidadRiesgoBajo() {
         return probabilidadRiesgoBajo;

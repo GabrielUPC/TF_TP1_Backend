@@ -58,6 +58,7 @@ public class ReporteServiceImplements implements IReporteInterfaces {
         Long idIpress = usuario.getIpress().getIdIpress();
 
         List<PrediccionRiesgo> predicciones = pR.findAll().stream()
+                .filter(prediccion -> !Boolean.FALSE.equals(prediccion.getVigente()))
                 .filter(prediccion -> prediccionPerteneceAIpress(prediccion, idIpress))
                 .filter(prediccion -> idArchivo.equals(obtenerIdArchivo(prediccion)))
                 .collect(Collectors.toList());
@@ -308,6 +309,8 @@ public class ReporteServiceImplements implements IReporteInterfaces {
     private boolean reportePerteneceAIpress(Reporte reporte, Long idIpress) {
 
         return reporte != null
+                && reporte.getPrediccionRiesgo() != null
+                && !Boolean.FALSE.equals(reporte.getPrediccionRiesgo().getVigente())
                 && prediccionPerteneceAIpress(reporte.getPrediccionRiesgo(), idIpress);
     }
 
