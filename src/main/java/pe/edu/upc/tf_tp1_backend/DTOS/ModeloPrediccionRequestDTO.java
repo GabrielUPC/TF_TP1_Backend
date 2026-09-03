@@ -11,6 +11,7 @@ public class ModeloPrediccionRequestDTO {
     private ModeloDatosHospitalariosDTO registroActual;
 
     @JsonProperty("historial_ultimos_meses")
+    // Hasta t-2 y t-1 exactos del mismo IPRESS/servicio; no completar huecos con otros meses.
     private List<ModeloDatosHospitalariosDTO> historialUltimosMeses = new ArrayList<>();
 
     public ModeloDatosHospitalariosDTO getRegistroActual() {

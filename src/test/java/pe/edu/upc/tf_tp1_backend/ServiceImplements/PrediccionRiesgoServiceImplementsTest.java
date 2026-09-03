@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -111,6 +112,10 @@ class PrediccionRiesgoServiceImplementsTest {
         PrediccionRiesgo guardada = prediccionCaptor.getValue();
         assertEquals("ALTO", guardada.getNivelRiesgo());
         assertEquals(0.87, guardada.getProbabilidad());
+        assertEquals(0.03, guardada.getProbabilidadRiesgoBajo());
+        assertEquals(0.10, guardada.getProbabilidadRiesgoMedio());
+        assertEquals(0.87, guardada.getProbabilidadRiesgoAlto());
+        assertEquals(0.91, guardada.getRiesgoInsuficienciaCapacidad());
         assertEquals("XGBoost - FastAPI", guardada.getModeloUtilizado());
     }
 
@@ -219,6 +224,73 @@ class PrediccionRiesgoServiceImplementsTest {
                 7,"00006207",2026,2,"HOSPITALIZACION GENERAL","Q05","pendiente")));
         assertEquals(false,pEnero.getVigente()); assertEquals(false,pFebrero.getVigente());
         verify(prediccionRepository).saveAll(List.of(pEnero,pFebrero));
+    }
+
+    @Test
+    void conservaMedioAunqueBajoSeaMayorYNoFabricaIndice() {
+        ModeloPrediccionResponseDTO respuesta = new ModeloPrediccionResponseDTO();
+        respuesta.setNivelRiesgoPredicho("medio");
+        respuesta.setNivelRiesgoCodificado(1);
+        respuesta.setProbabilidad(0.30);
+        respuesta.setProbabilidadRiesgoBajo(0.45);
+        respuesta.setProbabilidadRiesgoMedio(0.30);
+        respuesta.setProbabilidadRiesgoAlto(0.25);
+        PrediccionRiesgo guardada = predecirCon(respuesta, List.of());
+        assertEquals("MEDIO", guardada.getNivelRiesgo());
+        assertEquals(0.30, guardada.getProbabilidad());
+        assertEquals(0.45, guardada.getProbabilidadRiesgoBajo());
+        assertEquals(0.30, guardada.getProbabilidadRiesgoMedio());
+        assertEquals(0.25, guardada.getProbabilidadRiesgoAlto());
+        assertNull(guardada.getRiesgoInsuficienciaCapacidad());
+    }
+
+    @Test
+    void conservaProbabilidadesDelMapaSinNormalizar() {
+        ModeloPrediccionResponseDTO respuesta = respuestaMedio();
+        respuesta.setProbabilidadesPorClase(java.util.Map.of("bajo", 0.45, "medio", 0.30, "alto", 0.25));
+        PrediccionRiesgo guardada = predecirCon(respuesta, List.of());
+        assertEquals(0.45, guardada.getProbabilidadRiesgoBajo());
+        assertEquals(0.30, guardada.getProbabilidadRiesgoMedio());
+        assertEquals(0.25, guardada.getProbabilidadRiesgoAlto());
+    }
+
+    @Test
+    void historialRespetaGrupoMesesExactosYNoRellenaHuecos() {
+        Ipress ipress = crearIpress();
+        RegistroHospitalario enero = crearRegistro(1, 2026, 1, ipress);
+        RegistroHospitalario otroServicio = crearRegistro(2, 2026, 2, ipress);
+        otroServicio.setServicioHospitalario("CIRUGIA");
+        Ipress otra = crearIpress(); otra.setIdIpress(100L);
+        RegistroHospitalario otraIpress = crearRegistro(3, 2026, 2, otra);
+        PrediccionRiesgo guardada = predecirCon(respuestaMedio(), List.of(enero, otroServicio, otraIpress,
+                crearRegistro(4, 2026, 4, ipress), crearRegistro(5, 2025, 12, ipress)));
+        assertNull(guardada.getProbabilidadRiesgoAlto());
+        ArgumentCaptor<ModeloPrediccionRequestDTO> captor = ArgumentCaptor.forClass(ModeloPrediccionRequestDTO.class);
+        verify(modeloClient).predecir(captor.capture());
+        assertEquals(1, captor.getValue().getHistorialUltimosMeses().size());
+        assertEquals(1, captor.getValue().getHistorialUltimosMeses().get(0).getMes());
+        assertEquals("00006207", captor.getValue().getHistorialUltimosMeses().get(0).getCodigoIpress());
+        assertEquals("HOSPITALIZACION GENERAL", captor.getValue().getHistorialUltimosMeses().get(0).getServicioHospitalizacion());
+    }
+
+    private ModeloPrediccionResponseDTO respuestaMedio() {
+        ModeloPrediccionResponseDTO r = new ModeloPrediccionResponseDTO();
+        r.setNivelRiesgoPredicho("MEDIO"); r.setProbabilidad(0.30); return r;
+    }
+
+    private PrediccionRiesgo predecirCon(ModeloPrediccionResponseDTO respuesta, List<RegistroHospitalario> historial) {
+        IndicadorHospitalario indicador = new IndicadorHospitalario();
+        indicador.setIdIndicador(10);
+        indicador.setRegistroHospitalario(crearRegistro(20, 2026, 3, crearIpress()));
+        when(indicadorRepository.findById(10)).thenReturn(Optional.of(indicador));
+        when(prediccionRepository.findByIndicadorHospitalario_IdIndicador(10)).thenReturn(Optional.empty());
+        when(registroRepository.findByArchivoCargado_Ipress_IdIpressAndServicioHospitalarioIgnoreCase(99L,
+                "HOSPITALIZACION GENERAL")).thenReturn(historial);
+        when(modeloClient.predecir(any(ModeloPrediccionRequestDTO.class))).thenReturn(respuesta);
+        service.predecirPorIndicador(10);
+        ArgumentCaptor<PrediccionRiesgo> captor = ArgumentCaptor.forClass(PrediccionRiesgo.class);
+        verify(prediccionRepository).save(captor.capture());
+        return captor.getValue();
     }
 
     private PrediccionRiesgo prediccion(RegistroHospitalario r) {

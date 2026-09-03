@@ -14,6 +14,8 @@ import pe.edu.upc.tf_tp1_backend.Repositories.IRegistroHospitalarioRepository;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IIndicadorHospitalarioInterfaces;
 
 import java.util.List;
+import java.time.YearMonth;
+import java.time.DateTimeException;
 import java.util.stream.Collectors;
 
 @Service
@@ -118,26 +120,17 @@ public class IndicadorHospitalarioServiceImplements implements IIndicadorHospita
 
         indicador.setRegistroHospitalario(registro);
 
-        Integer camasReferencia;
-
-        if (registro.getTotalCamasDisponibles() != null
-                && registro.getTotalCamasDisponibles() > 0) {
-            camasReferencia = registro.getTotalCamasDisponibles();
-        } else if (registro.getCamasDisponiblesHabilitadas() != null
-                && registro.getCamasDisponiblesHabilitadas() > 0) {
-            camasReferencia = registro.getCamasDisponiblesHabilitadas();
-        } else {
-            camasReferencia = registro.getCamasTotales();
-        }
+        // Camas físicas y días-cama mensuales tienen unidades diferentes.
+        Number diasCamaDisponibles = obtenerDiasCamaDisponibles(registro);
 
         Double ocupacionEstimada = dividir(
                 registro.getPacientesCama(),
-                camasReferencia
+                diasCamaDisponibles
         );
 
         Double presionIngresosCamas = dividir(
                 registro.getIngresos(),
-                camasReferencia
+                registro.getCamasTotales()
         );
 
         Double promedioEstancia = dividir(
@@ -147,7 +140,7 @@ public class IndicadorHospitalarioServiceImplements implements IIndicadorHospita
 
         Double rotacionCamas = dividir(
                 registro.getEgresos(),
-                camasReferencia
+                registro.getCamasTotales()
         );
 
         indicador.setOcupacionEstimada(ocupacionEstimada);
@@ -158,9 +151,27 @@ public class IndicadorHospitalarioServiceImplements implements IIndicadorHospita
         iR.save(indicador);
     }
 
-    private Double dividir(Integer numerador, Integer denominador) {
+    private Number obtenerDiasCamaDisponibles(RegistroHospitalario registro) {
+        if (registro.getTotalCamasDisponibles() != null) {
+            return registro.getTotalCamasDisponibles(); // D1: ya son días-cama, incluido cero.
+        }
+        // Formato interno: misma conversión que el request a FastAPI; no sustituir por camas totales.
+        if (registro.getCamasDisponiblesHabilitadas() == null
+                || registro.getCamasDisponiblesHabilitadas() < 0
+                || registro.getAnio() == null || registro.getMes() == null) return null;
+        try {
+            return registro.getCamasDisponiblesHabilitadas().doubleValue()
+                    * YearMonth.of(registro.getAnio(), registro.getMes()).lengthOfMonth();
+        } catch (DateTimeException error) {
+            return null;
+        }
+    }
 
-        if (numerador == null || denominador == null || denominador == 0) {
+    private Double dividir(Integer numerador, Number denominador) {
+
+        // Conserva el cero defensivo legado; no es una decisión predictiva.
+        if (numerador == null || numerador < 0 || denominador == null
+                || !Double.isFinite(denominador.doubleValue()) || denominador.doubleValue() <= 0) {
             return 0.0;
         }
 

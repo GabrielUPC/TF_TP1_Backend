@@ -157,14 +157,16 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
 
         ModeloPrediccionRequestDTO solicitud = construirSolicitud(registro);
         ModeloPrediccionResponseDTO respuesta = modeloClient.predecir(solicitud);
+        // FastAPI decide la clase final. No aplicar argmax ni umbrales en Java.
         String nivelRiesgo = validarNivelRiesgo(respuesta.getNivelRiesgoPredicho());
+        // Probabilidad de esa clase FINAL, que puede no ser el máximo de las tres.
         Double probabilidad = validarProbabilidad(respuesta.getProbabilidad());
         Double probabilidadRiesgoBajo = obtenerProbabilidadRespuesta(respuesta, "bajo");
         Double probabilidadRiesgoMedio = obtenerProbabilidadRespuesta(respuesta, "medio");
         Double probabilidadRiesgoAlto = obtenerProbabilidadRespuesta(respuesta, "alto");
-        Double riesgoInsuficienciaCapacidad = validarProbabilidad(
-                respuesta.getRiesgoInsuficienciaCapacidad()
-        );
+        // Índice visual/operativo legado, no probabilidad calibrada ni criterio de clasificación.
+        Double riesgoInsuficienciaCapacidad = respuesta.getRiesgoInsuficienciaCapacidad() == null
+                ? null : validarProbabilidad(respuesta.getRiesgoInsuficienciaCapacidad());
 
         prediccion.setProbabilidad(probabilidad);
         prediccion.setProbabilidadRiesgoBajo(probabilidadRiesgoBajo);
@@ -218,6 +220,12 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
 
         Map<YearMonth, RegistroHospitalario> registroPorPeriodo = new HashMap<>();
         for (RegistroHospitalario candidato : candidatos) {
+            ArchivoCargado archivoCandidato = candidato.getArchivoCargado();
+            Ipress ipressCandidata = archivoCandidato == null ? null : archivoCandidato.getIpress();
+            if (ipressCandidata == null || !ipress.getIdIpress().equals(ipressCandidata.getIdIpress())
+                    || !textoRequerido(registroActual.getServicioHospitalario(), "servicioHospitalario")
+                    .equalsIgnoreCase(candidato.getServicioHospitalario() == null
+                            ? "" : candidato.getServicioHospitalario().trim())) continue;
             YearMonth periodo = obtenerPeriodo(candidato);
             if (!periodosBuscados.contains(periodo)) {
                 continue;
@@ -319,11 +327,13 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
         );
         datos.setTotalCamas(numeroRequerido(registro.getCamasTotales(), "camasTotales"));
         if (registro.getTotalCamasDisponibles() != null) {
+            // D1: total mensual de días-cama disponibles; no camas libres.
             datos.setTotalCamasDisponibles(numeroRequerido(
                     registro.getTotalCamasDisponibles(),
                     "totalCamasDisponibles"
             ));
         } else {
+            // Formato interno: camas habilitadas (número físico) por días del mes.
             double camasDisponiblesHabilitadas = numeroRequerido(
                     registro.getCamasDisponiblesHabilitadas(),
                     "camasDisponiblesHabilitadas"
@@ -401,7 +411,7 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
             String clase
     ) {
         if (probabilidadesPorClase == null || probabilidadesPorClase.isEmpty()) {
-            return 0.0;
+            return null; // Ausente no significa probabilidad cero.
         }
 
         for (Map.Entry<String, Double> entrada : probabilidadesPorClase.entrySet()) {
@@ -411,7 +421,7 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
             }
         }
 
-        return 0.0;
+        return null;
     }
 
     private Double obtenerProbabilidadRespuesta(

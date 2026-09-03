@@ -14,6 +14,7 @@ public class ModeloPrediccionResponseDTO {
     private String periodoPredicho;
 
     @JsonProperty("riesgo_insuficiencia_capacidad")
+    // Índice operativo/visual legado, NO probabilidad calibrada de insuficiencia.
     private Double riesgoInsuficienciaCapacidad;
 
     @JsonProperty("horizonte_prediccion")
@@ -26,9 +27,11 @@ public class ModeloPrediccionResponseDTO {
     private Integer nivelRiesgoCodificado;
 
     @JsonProperty("probabilidad")
+    // Probabilidad de la clase FINAL elegida por Python; no necesariamente max(p).
     private Double probabilidad;
 
     @JsonProperty("probabilidades_por_clase")
+    // Salidas originales: conservar sin reconstrucción ni renormalización.
     private Map<String, Double> probabilidadesPorClase;
 
     @JsonProperty("variables_principales")

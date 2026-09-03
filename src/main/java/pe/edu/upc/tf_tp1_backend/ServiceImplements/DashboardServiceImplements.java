@@ -474,12 +474,14 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         String riesgo = prediccion.getNivelRiesgo() == null
                 ? "sin datos"
                 : prediccion.getNivelRiesgo();
-        double confianza = valor(prediccion.getProbabilidad()) * 100;
+        Double probabilidad = prediccion.getProbabilidad();
+        String probabilidadClase = probabilidad == null || !Double.isFinite(probabilidad)
+                ? "N/D" : redondear(probabilidad * 100) + "%";
         return "El modelo XGBoost - FastAPI clasifica el riesgo del siguiente mes como "
                 + riesgo
-                + " con confianza aproximada de "
-                + redondear(confianza)
-                + "%. El resultado es referencial y sirve como apoyo preventivo.";
+                + ". Probabilidad de la clase predicha: "
+                + probabilidadClase
+                + ". El resultado es referencial y sirve como apoyo preventivo.";
     }
 
     private String recomendacionBreve(String causa) {
