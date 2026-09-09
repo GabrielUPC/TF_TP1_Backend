@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 import pe.edu.upc.tf_tp1_backend.DTOS.ModeloDatosHospitalariosDTO;
 import pe.edu.upc.tf_tp1_backend.DTOS.ModeloPrediccionBinariaResponseDTO;
 import pe.edu.upc.tf_tp1_backend.DTOS.ModeloPrediccionRequestDTO;
@@ -76,13 +75,30 @@ class ModeloPredictivoClientServiceTest {
     @Test
     void serializaJsonRealConCincoHistoricosYSinIpressPublica() throws Exception {
         AtomicReference<String> cuerpoRecibido = new AtomicReference<>();
+        AtomicReference<String> metodoRecibido = new AtomicReference<>();
+        AtomicReference<String> contentTypeRecibido = new AtomicReference<>();
+        AtomicReference<String> contentLengthRecibido = new AtomicReference<>();
         servidor.createContext("/prediccion-binaria", intercambio -> {
+            metodoRecibido.set(intercambio.getRequestMethod());
+            contentTypeRecibido.set(intercambio.getRequestHeaders().getFirst("Content-Type"));
+            contentLengthRecibido.set(intercambio.getRequestHeaders().getFirst("Content-Length"));
             cuerpoRecibido.set(new String(intercambio.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             responder(intercambio, 200, respuestaBinaria(0.30, 0.36, false));
         });
 
         new ModeloPredictivoClientService(baseUrl).predecirBinario(solicitudConHistorial());
 
+        assertEquals("POST", metodoRecibido.get());
+        assertEquals("application/json", contentTypeRecibido.get());
+        assertNotNull(cuerpoRecibido.get());
+        assertFalse(cuerpoRecibido.get().isBlank());
+        assertTrue(cuerpoRecibido.get().getBytes(StandardCharsets.UTF_8).length > 0);
+        if (contentLengthRecibido.get() != null) {
+            assertEquals(
+                    cuerpoRecibido.get().getBytes(StandardCharsets.UTF_8).length,
+                    Integer.parseInt(contentLengthRecibido.get())
+            );
+        }
         JsonNode json = new ObjectMapper().readTree(cuerpoRecibido.get());
         assertTrue(json.has("registro_actual"));
         assertEquals(5, json.get("historial_ultimos_meses").size());
@@ -112,13 +128,14 @@ class ModeloPredictivoClientServiceTest {
                 "{\"detail\":{\"estado\":\"datos_insuficientes\",\"mensaje\":\"faltan meses\"}}"
         ));
 
-        ResponseStatusException error = assertThrows(
-                ResponseStatusException.class,
+        PrediccionBinariaAutomaticaException error = assertThrows(
+                PrediccionBinariaAutomaticaException.class,
                 () -> new ModeloPredictivoClientService(baseUrl).predecirBinario(solicitud())
         );
 
-        assertEquals(HttpStatus.UNPROCESSABLE_CONTENT, error.getStatusCode());
-        assertTrue(error.getReason().contains("datos_insuficientes"));
+        assertEquals(HttpStatus.UNPROCESSABLE_CONTENT, error.getStatus());
+        assertEquals("MODELO_RECHAZO_SOLICITUD", error.getCodigo());
+        assertTrue(error.getMessage().contains("datos_insuficientes"));
     }
 
     @Test

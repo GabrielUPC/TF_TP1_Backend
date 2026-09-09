@@ -3,12 +3,14 @@ package pe.edu.upc.tf_tp1_backend.ServiceImplements;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
+import tools.jackson.databind.ObjectMapper;
 import pe.edu.upc.tf_tp1_backend.DTOS.ModeloPrediccionRequestDTO;
 import pe.edu.upc.tf_tp1_backend.DTOS.ModeloPrediccionBinariaResponseDTO;
 import pe.edu.upc.tf_tp1_backend.DTOS.ModeloPrediccionResponseDTO;
@@ -21,12 +23,14 @@ public class ModeloPredictivoClientService {
     private static final int LIMITE_DETALLE_ERROR = 500;
 
     private final RestClient restClient;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ModeloPredictivoClientService(
             @Value("${modelo.ipress.url}") String modeloIpressUrl
     ) {
         this.restClient = RestClient.builder()
                 .baseUrl(normalizarUrl(modeloIpressUrl))
+                .requestFactory(new SimpleClientHttpRequestFactory())
                 .build();
     }
 
@@ -82,16 +86,18 @@ public class ModeloPredictivoClientService {
             );
         }
         try {
+            String cuerpoJson = objectMapper.writeValueAsString(solicitud);
             ModeloPrediccionBinariaResponseDTO respuesta = restClient.post()
                     .uri("/prediccion-binaria")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(solicitud)
+                    .body(cuerpoJson)
                     .retrieve()
                     .body(ModeloPrediccionBinariaResponseDTO.class);
 
             if (respuesta == null) {
-                throw new ResponseStatusException(
+                throw new PrediccionBinariaAutomaticaException(
                         HttpStatus.BAD_GATEWAY,
+                        "RESPUESTA_MODELO_VACIA",
                         "El microservicio binario devolvio una respuesta vacia"
                 );
             }
@@ -105,24 +111,29 @@ public class ModeloPredictivoClientService {
                 case 503 -> HttpStatus.SERVICE_UNAVAILABLE;
                 default -> HttpStatus.BAD_GATEWAY;
             };
-            throw new ResponseStatusException(
+            String codigo = switch (error.getStatusCode().value()) {
+                case 422 -> "MODELO_RECHAZO_SOLICITUD";
+                case 503 -> "MODELO_NO_DISPONIBLE";
+                default -> "RESPUESTA_MODELO_ERROR";
+            };
+            throw new PrediccionBinariaAutomaticaException(
                     estado,
+                    codigo,
                     "El microservicio binario rechazo la prediccion con estado "
                             + error.getStatusCode().value()
-                            + (detalle.isBlank() ? "" : ": " + detalle),
-                    error
+                            + (detalle.isBlank() ? "" : ": " + detalle)
             );
         } catch (ResourceAccessException error) {
-            throw new ResponseStatusException(
+            throw new PrediccionBinariaAutomaticaException(
                     HttpStatus.SERVICE_UNAVAILABLE,
-                    "No se pudo conectar con el microservicio del modelo en /prediccion-binaria",
-                    error
+                    "MODELO_NO_DISPONIBLE",
+                    "No se pudo conectar con el microservicio del modelo en /prediccion-binaria"
             );
         } catch (RestClientException error) {
-            throw new ResponseStatusException(
+            throw new PrediccionBinariaAutomaticaException(
                     HttpStatus.BAD_GATEWAY,
-                    "Fallo la comunicacion con el microservicio binario",
-                    error
+                    "ERROR_COMUNICACION_MODELO",
+                    "Fallo la comunicacion con el microservicio binario"
             );
         }
     }
