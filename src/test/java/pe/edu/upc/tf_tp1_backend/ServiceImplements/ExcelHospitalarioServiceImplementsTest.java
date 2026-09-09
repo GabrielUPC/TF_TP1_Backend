@@ -155,7 +155,7 @@ class ExcelHospitalarioServiceImplementsTest {
     }
 
     @Test
-    void procesaD1YGeneraPredicciones() throws Exception {
+    void procesaD1SinGenerarPrediccionesLegacy() throws Exception {
         MockMultipartFile archivo = archivoCsv();
         ContenidoArchivoHospitalario contenido =
                 new ContenidoArchivoHospitalario(
@@ -206,10 +206,11 @@ class ExcelHospitalarioServiceImplementsTest {
                         "usuario@prueba.pe"
                 );
 
-        verify(prediccionService).predecirPorArchivo(12L);
+        verify(prediccionService, never()).predecirPorArchivo(any());
+        verify(reporteService, never()).generarPorArchivo(any(), any());
         assertEquals("DATASET_D1", respuesta.getFormatoDetectado());
         assertEquals(1, respuesta.getTotalRegistrosValidos());
-        assertEquals(1, respuesta.getTotalPrediccionesGeneradas());
+        assertEquals(0, respuesta.getTotalPrediccionesGeneradas());
     }
 
     @Test
@@ -251,7 +252,7 @@ class ExcelHospitalarioServiceImplementsTest {
         verify(consolidador).consolidar(antesDeConsolidar.capture(), any());
         assertEquals(1, antesDeConsolidar.getValue().size());
         assertSame(validoFebrero, antesDeConsolidar.getValue().get(0));
-        verify(prediccionService).predecirPorArchivo(12L);
+        verify(prediccionService, never()).predecirPorArchivo(any());
         assertEquals("PROCESADO_PARCIAL", respuesta.getEstadoProcesamiento());
         assertEquals(1, respuesta.getTotalRegistrosValidos());
         assertEquals(1, respuesta.getTotalGruposPendientes());
@@ -293,7 +294,7 @@ class ExcelHospitalarioServiceImplementsTest {
         assertEquals(3, pendientes.getValue().size());
         org.junit.jupiter.api.Assertions.assertTrue(pendientes.getValue().stream()
                 .allMatch(p -> p.getDatosRegistroJson().contains("codigoIpress")));
-        verify(prediccionService).predecirPorArchivo(12L);
+        verify(prediccionService, never()).predecirPorArchivo(any());
     }
 
     @Test

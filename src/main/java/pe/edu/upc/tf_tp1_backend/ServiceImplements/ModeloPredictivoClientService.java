@@ -74,6 +74,13 @@ public class ModeloPredictivoClientService {
     public ModeloPrediccionBinariaResponseDTO predecirBinario(
             ModeloPrediccionRequestDTO solicitud
     ) {
+        if (solicitud == null || solicitud.getRegistroActual() == null) {
+            throw new PrediccionBinariaAutomaticaException(
+                    HttpStatus.BAD_REQUEST,
+                    "SOLICITUD_INVALIDA",
+                    "La solicitud binaria y registro_actual son obligatorios."
+            );
+        }
         try {
             ModeloPrediccionBinariaResponseDTO respuesta = restClient.post()
                     .uri("/prediccion-binaria")

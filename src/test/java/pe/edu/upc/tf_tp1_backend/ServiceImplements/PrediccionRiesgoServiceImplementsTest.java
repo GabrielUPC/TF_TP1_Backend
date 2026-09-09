@@ -218,12 +218,15 @@ class PrediccionRiesgoServiceImplementsTest {
         Ipress ipress=crearIpress();
         RegistroHospitalario enero=crearRegistro(50,2026,1,ipress);
         RegistroHospitalario febrero=crearRegistro(51,2026,2,ipress);
+        RegistroHospitalario julio=crearRegistro(52,2026,7,ipress);
         PrediccionRiesgo pEnero=prediccion(enero); PrediccionRiesgo pFebrero=prediccion(febrero);
-        when(prediccionRepository.findAll()).thenReturn(List.of(pEnero,pFebrero));
+        PrediccionRiesgo pJulio=prediccion(julio);
+        when(prediccionRepository.findAll()).thenReturn(List.of(pEnero,pFebrero,pJulio));
         service.invalidarPorPendientes(List.of(new pe.edu.upc.tf_tp1_backend.CargaHospitalaria.HallazgoCalidadImportado(
                 7,"00006207",2026,2,"HOSPITALIZACION GENERAL","Q05","pendiente")));
         assertEquals(false,pEnero.getVigente()); assertEquals(false,pFebrero.getVigente());
-        verify(prediccionRepository).saveAll(List.of(pEnero,pFebrero));
+        assertEquals(false,pJulio.getVigente());
+        verify(prediccionRepository).saveAll(List.of(pEnero,pFebrero,pJulio));
     }
 
     @Test
@@ -295,7 +298,8 @@ class PrediccionRiesgoServiceImplementsTest {
 
     private PrediccionRiesgo prediccion(RegistroHospitalario r) {
         IndicadorHospitalario i=new IndicadorHospitalario(); i.setRegistroHospitalario(r);
-        PrediccionRiesgo p=new PrediccionRiesgo(); p.setIndicadorHospitalario(i); return p;
+        PrediccionRiesgo p=new PrediccionRiesgo(); p.setIndicadorHospitalario(i);
+        p.setModeloUtilizado("modelo_ipress_binario_v1"); p.setVigente(true); return p;
     }
 
     private Ipress crearIpress() {

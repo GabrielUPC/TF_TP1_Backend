@@ -1,6 +1,7 @@
 package pe.edu.upc.tf_tp1_backend.Controllers;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,8 +24,9 @@ public class PrediccionBinariaController {
     }
 
     @PostMapping("/binaria")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ModeloPrediccionBinariaResponseDTO predecirBinario(
-            @RequestBody ModeloPrediccionRequestDTO solicitud
+            @RequestBody(required = false) ModeloPrediccionRequestDTO solicitud
     ) {
         return modeloClient.predecirBinario(solicitud);
     }

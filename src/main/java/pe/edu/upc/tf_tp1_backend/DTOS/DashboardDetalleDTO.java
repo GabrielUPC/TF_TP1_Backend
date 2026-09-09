@@ -1,23 +1,17 @@
 package pe.edu.upc.tf_tp1_backend.DTOS;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
+/** Registro observado con un bloque predictivo binario opcional. */
 public class DashboardDetalleDTO {
-
-    private Integer idPrediccion;
     private Integer idIndicador;
     private Integer idRegistro;
     private Long idArchivo;
     private String nombreArchivo;
-
     private Integer anio;
     private Integer mes;
-    private Integer anioPredicho;
-    private Integer mesPredicho;
     private String servicioHospitalario;
     private String codigoIpress;
-
     private Integer ingresos;
     private Integer egresos;
     private Integer estancias;
@@ -25,336 +19,47 @@ public class DashboardDetalleDTO {
     private Integer camasTotales;
     private Integer camasDisponiblesHabilitadas;
     private Integer totalCamasDisponibles;
-
     private Double ocupacionEstimada;
     private Double presionIngresosCamas;
     private Double promedioEstancia;
     private Double rotacionCamas;
 
+    private Integer idPrediccion;
+    private Double probabilidadAltaPresion;
+    private Double threshold;
+    private Boolean alertaAltaPresion;
     private String nivelRiesgo;
-    private Double probabilidad;
-    private Double probabilidadRiesgoBajo;
-    private Double probabilidadRiesgoMedio;
-    private Double probabilidadRiesgoAlto;
-    private Double riesgoInsuficienciaCapacidad;
+    private String descripcionRiesgo;
+    private String periodoPredicho;
     private String modeloUtilizado;
     private LocalDateTime fechaPrediccion;
 
-    private String alerta;
-    private String interpretacion;
-    private String causaPrincipalRiesgo;
-    private Integer brechaOperativa;
-    private String nivelBrechaOperativa;
-    private String diagnosticoOperativo;
-    private List<String> recomendacionesOperativas;
-    private String interpretacionModelo;
-    private Double confianzaPrediccion;
-
-    public Integer getIdPrediccion() {
-        return idPrediccion;
-    }
-
-    public void setIdPrediccion(Integer idPrediccion) {
-        this.idPrediccion = idPrediccion;
-    }
-
-    public Integer getIdIndicador() {
-        return idIndicador;
-    }
-
-    public void setIdIndicador(Integer idIndicador) {
-        this.idIndicador = idIndicador;
-    }
-
-    public Integer getIdRegistro() {
-        return idRegistro;
-    }
-
-    public void setIdRegistro(Integer idRegistro) {
-        this.idRegistro = idRegistro;
-    }
-
-    public Long getIdArchivo() {
-        return idArchivo;
-    }
-
-    public void setIdArchivo(Long idArchivo) {
-        this.idArchivo = idArchivo;
-    }
-
-    public String getNombreArchivo() {
-        return nombreArchivo;
-    }
-
-    public void setNombreArchivo(String nombreArchivo) {
-        this.nombreArchivo = nombreArchivo;
-    }
-
-    public Integer getAnio() {
-        return anio;
-    }
-
-    public void setAnio(Integer anio) {
-        this.anio = anio;
-    }
-
-    public Integer getMes() {
-        return mes;
-    }
-
-    public void setMes(Integer mes) {
-        this.mes = mes;
-    }
-
-    public Integer getAnioPredicho() {
-        return anioPredicho;
-    }
-
-    public void setAnioPredicho(Integer anioPredicho) {
-        this.anioPredicho = anioPredicho;
-    }
-
-    public Integer getMesPredicho() {
-        return mesPredicho;
-    }
-
-    public void setMesPredicho(Integer mesPredicho) {
-        this.mesPredicho = mesPredicho;
-    }
-
-    public String getServicioHospitalario() {
-        return servicioHospitalario;
-    }
-
-    public void setServicioHospitalario(String servicioHospitalario) {
-        this.servicioHospitalario = servicioHospitalario;
-    }
-
-    public String getCodigoIpress() {
-        return codigoIpress;
-    }
-
-    public void setCodigoIpress(String codigoIpress) {
-        this.codigoIpress = codigoIpress;
-    }
-
-    public Integer getIngresos() {
-        return ingresos;
-    }
-
-    public void setIngresos(Integer ingresos) {
-        this.ingresos = ingresos;
-    }
-
-    public Integer getEgresos() {
-        return egresos;
-    }
-
-    public void setEgresos(Integer egresos) {
-        this.egresos = egresos;
-    }
-
-    public Integer getEstancias() {
-        return estancias;
-    }
-
-    public void setEstancias(Integer estancias) {
-        this.estancias = estancias;
-    }
-
-    public Integer getPacientesCama() {
-        return pacientesCama;
-    }
-
-    public void setPacientesCama(Integer pacientesCama) {
-        this.pacientesCama = pacientesCama;
-    }
-
-    public Integer getCamasTotales() {
-        return camasTotales;
-    }
-
-    public void setCamasTotales(Integer camasTotales) {
-        this.camasTotales = camasTotales;
-    }
-
-    public Integer getCamasDisponiblesHabilitadas() {
-        return camasDisponiblesHabilitadas;
-    }
-
-    public void setCamasDisponiblesHabilitadas(Integer camasDisponiblesHabilitadas) {
-        this.camasDisponiblesHabilitadas = camasDisponiblesHabilitadas;
-    }
-    public Integer getTotalCamasDisponibles() {
-        return totalCamasDisponibles;
-    }
-
-    public void setTotalCamasDisponibles(Integer totalCamasDisponibles) {
-        this.totalCamasDisponibles = totalCamasDisponibles;
-    }
-    public Double getOcupacionEstimada() {
-        return ocupacionEstimada;
-    }
-
-    public void setOcupacionEstimada(Double ocupacionEstimada) {
-        this.ocupacionEstimada = ocupacionEstimada;
-    }
-
-    public Double getPresionIngresosCamas() {
-        return presionIngresosCamas;
-    }
-
-    public void setPresionIngresosCamas(Double presionIngresosCamas) {
-        this.presionIngresosCamas = presionIngresosCamas;
-    }
-
-    public Double getPromedioEstancia() {
-        return promedioEstancia;
-    }
-
-    public void setPromedioEstancia(Double promedioEstancia) {
-        this.promedioEstancia = promedioEstancia;
-    }
-
-    public Double getRotacionCamas() {
-        return rotacionCamas;
-    }
-
-    public void setRotacionCamas(Double rotacionCamas) {
-        this.rotacionCamas = rotacionCamas;
-    }
-
-    public String getNivelRiesgo() {
-        return nivelRiesgo;
-    }
-
-    public void setNivelRiesgo(String nivelRiesgo) {
-        this.nivelRiesgo = nivelRiesgo;
-    }
-
-    public Double getProbabilidad() {
-        return probabilidad;
-    }
-
-    public void setProbabilidad(Double probabilidad) {
-        this.probabilidad = probabilidad;
-    }
-
-    public Double getProbabilidadRiesgoAlto() {
-        return probabilidadRiesgoAlto;
-    }
-
-    public void setProbabilidadRiesgoAlto(Double probabilidadRiesgoAlto) {
-        this.probabilidadRiesgoAlto = probabilidadRiesgoAlto;
-    }
-
-    public Double getProbabilidadRiesgoBajo() {
-        return probabilidadRiesgoBajo;
-    }
-
-    public void setProbabilidadRiesgoBajo(Double probabilidadRiesgoBajo) {
-        this.probabilidadRiesgoBajo = probabilidadRiesgoBajo;
-    }
-
-    public Double getProbabilidadRiesgoMedio() {
-        return probabilidadRiesgoMedio;
-    }
-
-    public void setProbabilidadRiesgoMedio(Double probabilidadRiesgoMedio) {
-        this.probabilidadRiesgoMedio = probabilidadRiesgoMedio;
-    }
-    public Double getRiesgoInsuficienciaCapacidad() {
-        return riesgoInsuficienciaCapacidad;
-    }
-
-    public void setRiesgoInsuficienciaCapacidad(Double riesgoInsuficienciaCapacidad) {
-        this.riesgoInsuficienciaCapacidad = riesgoInsuficienciaCapacidad;
-    }
-    public String getModeloUtilizado() {
-        return modeloUtilizado;
-    }
-
-    public void setModeloUtilizado(String modeloUtilizado) {
-        this.modeloUtilizado = modeloUtilizado;
-    }
-
-    public LocalDateTime getFechaPrediccion() {
-        return fechaPrediccion;
-    }
-
-    public void setFechaPrediccion(LocalDateTime fechaPrediccion) {
-        this.fechaPrediccion = fechaPrediccion;
-    }
-
-    public String getAlerta() {
-        return alerta;
-    }
-
-    public void setAlerta(String alerta) {
-        this.alerta = alerta;
-    }
-
-    public String getInterpretacion() {
-        return interpretacion;
-    }
-
-    public void setInterpretacion(String interpretacion) {
-        this.interpretacion = interpretacion;
-    }
-
-    public String getCausaPrincipalRiesgo() {
-        return causaPrincipalRiesgo;
-    }
-
-    public void setCausaPrincipalRiesgo(String causaPrincipalRiesgo) {
-        this.causaPrincipalRiesgo = causaPrincipalRiesgo;
-    }
-
-    public Integer getBrechaOperativa() {
-        return brechaOperativa;
-    }
-
-    public void setBrechaOperativa(Integer brechaOperativa) {
-        this.brechaOperativa = brechaOperativa;
-    }
-
-    public String getNivelBrechaOperativa() {
-        return nivelBrechaOperativa;
-    }
-
-    public void setNivelBrechaOperativa(String nivelBrechaOperativa) {
-        this.nivelBrechaOperativa = nivelBrechaOperativa;
-    }
-
-    public String getDiagnosticoOperativo() {
-        return diagnosticoOperativo;
-    }
-
-    public void setDiagnosticoOperativo(String diagnosticoOperativo) {
-        this.diagnosticoOperativo = diagnosticoOperativo;
-    }
-
-    public List<String> getRecomendacionesOperativas() {
-        return recomendacionesOperativas;
-    }
-
-    public void setRecomendacionesOperativas(List<String> recomendacionesOperativas) {
-        this.recomendacionesOperativas = recomendacionesOperativas;
-    }
-
-    public String getInterpretacionModelo() {
-        return interpretacionModelo;
-    }
-
-    public void setInterpretacionModelo(String interpretacionModelo) {
-        this.interpretacionModelo = interpretacionModelo;
-    }
-
-    public Double getConfianzaPrediccion() {
-        return confianzaPrediccion;
-    }
-
-    public void setConfianzaPrediccion(Double confianzaPrediccion) {
-        this.confianzaPrediccion = confianzaPrediccion;
-    }
+    public Integer getIdIndicador(){return idIndicador;} public void setIdIndicador(Integer v){idIndicador=v;}
+    public Integer getIdRegistro(){return idRegistro;} public void setIdRegistro(Integer v){idRegistro=v;}
+    public Long getIdArchivo(){return idArchivo;} public void setIdArchivo(Long v){idArchivo=v;}
+    public String getNombreArchivo(){return nombreArchivo;} public void setNombreArchivo(String v){nombreArchivo=v;}
+    public Integer getAnio(){return anio;} public void setAnio(Integer v){anio=v;}
+    public Integer getMes(){return mes;} public void setMes(Integer v){mes=v;}
+    public String getServicioHospitalario(){return servicioHospitalario;} public void setServicioHospitalario(String v){servicioHospitalario=v;}
+    public String getCodigoIpress(){return codigoIpress;} public void setCodigoIpress(String v){codigoIpress=v;}
+    public Integer getIngresos(){return ingresos;} public void setIngresos(Integer v){ingresos=v;}
+    public Integer getEgresos(){return egresos;} public void setEgresos(Integer v){egresos=v;}
+    public Integer getEstancias(){return estancias;} public void setEstancias(Integer v){estancias=v;}
+    public Integer getPacientesCama(){return pacientesCama;} public void setPacientesCama(Integer v){pacientesCama=v;}
+    public Integer getCamasTotales(){return camasTotales;} public void setCamasTotales(Integer v){camasTotales=v;}
+    public Integer getCamasDisponiblesHabilitadas(){return camasDisponiblesHabilitadas;} public void setCamasDisponiblesHabilitadas(Integer v){camasDisponiblesHabilitadas=v;}
+    public Integer getTotalCamasDisponibles(){return totalCamasDisponibles;} public void setTotalCamasDisponibles(Integer v){totalCamasDisponibles=v;}
+    public Double getOcupacionEstimada(){return ocupacionEstimada;} public void setOcupacionEstimada(Double v){ocupacionEstimada=v;}
+    public Double getPresionIngresosCamas(){return presionIngresosCamas;} public void setPresionIngresosCamas(Double v){presionIngresosCamas=v;}
+    public Double getPromedioEstancia(){return promedioEstancia;} public void setPromedioEstancia(Double v){promedioEstancia=v;}
+    public Double getRotacionCamas(){return rotacionCamas;} public void setRotacionCamas(Double v){rotacionCamas=v;}
+    public Integer getIdPrediccion(){return idPrediccion;} public void setIdPrediccion(Integer v){idPrediccion=v;}
+    public Double getProbabilidadAltaPresion(){return probabilidadAltaPresion;} public void setProbabilidadAltaPresion(Double v){probabilidadAltaPresion=v;}
+    public Double getThreshold(){return threshold;} public void setThreshold(Double v){threshold=v;}
+    public Boolean getAlertaAltaPresion(){return alertaAltaPresion;} public void setAlertaAltaPresion(Boolean v){alertaAltaPresion=v;}
+    public String getNivelRiesgo(){return nivelRiesgo;} public void setNivelRiesgo(String v){nivelRiesgo=v;}
+    public String getDescripcionRiesgo(){return descripcionRiesgo;} public void setDescripcionRiesgo(String v){descripcionRiesgo=v;}
+    public String getPeriodoPredicho(){return periodoPredicho;} public void setPeriodoPredicho(String v){periodoPredicho=v;}
+    public String getModeloUtilizado(){return modeloUtilizado;} public void setModeloUtilizado(String v){modeloUtilizado=v;}
+    public LocalDateTime getFechaPrediccion(){return fechaPrediccion;} public void setFechaPrediccion(LocalDateTime v){fechaPrediccion=v;}
 }

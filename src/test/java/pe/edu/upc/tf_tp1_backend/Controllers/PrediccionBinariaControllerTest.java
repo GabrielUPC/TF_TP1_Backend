@@ -8,6 +8,7 @@ import pe.edu.upc.tf_tp1_backend.Exceptions.PrediccionBinariaAutomaticaException
 import pe.edu.upc.tf_tp1_backend.ServiceImplements.ModeloPredictivoClientService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -31,6 +32,15 @@ class PrediccionBinariaControllerTest {
                 new PrediccionBinariaController(cliente).predecirBinario(solicitud);
 
         assertSame(esperada, recibida);
+    }
+
+    @Test
+    void endpointTecnicoEstaRestringidoAAdministradores() throws Exception {
+        PreAuthorize regla = PrediccionBinariaController.class
+                .getDeclaredMethod("predecirBinario", ModeloPrediccionRequestDTO.class)
+                .getAnnotation(PreAuthorize.class);
+        assertNotNull(regla);
+        assertEquals("hasRole('ADMINISTRADOR')", regla.value());
     }
 
     @Test

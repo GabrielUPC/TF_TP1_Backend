@@ -29,6 +29,32 @@ class TratamientoCalidadDatosHospitalariosTest {
         assertEquals(1,r.registrosValidos().size()); assertTrue(r.hallazgos().isEmpty());
     }
 
+    @Test void formatoInternoConvierteCamasHabilitadasADiasCamaAntesDeQ08() {
+        RegistroHospitalarioImportado valido = registro(8, "MEDICINA", 300, 10, 0);
+        valido.setTotalCamasDisponibles(null);
+        valido.setCamasDisponiblesHabilitadas(10);
+        RegistroHospitalarioImportado q08 = registro(9, "CIRUGIA", 400, 10, 0);
+        q08.setTotalCamasDisponibles(null);
+        q08.setCamasDisponiblesHabilitadas(10);
+
+        ResultadoTratamientoCalidad resultado = tratamiento.aplicar(List.of(valido, q08));
+
+        assertEquals(List.of(valido), resultado.registrosValidos());
+        assertEquals(List.of(q08), resultado.registrosPendientes());
+        assertEquals("Q08", resultado.hallazgos().get(0).regla());
+    }
+
+    @Test void q07Yq08ApartanSinCorregirValores() {
+        RegistroHospitalarioImportado q07 = registro(6, "MEDICINA", 36, 1116, 1200);
+        RegistroHospitalarioImportado q08 = registro(7, "CIRUGIA", 121, 10, 100);
+        ResultadoTratamientoCalidad r = tratamiento.aplicar(List.of(q07, q08));
+        assertTrue(r.registrosValidos().isEmpty());
+        assertEquals(List.of("Q07", "Q08"), r.hallazgos().stream()
+                .map(HallazgoCalidadImportado::regla).toList());
+        assertEquals(1116, q07.getCamasTotales());
+        assertEquals("capacidad_q05_q06_q07_q08_v3", TratamientoCalidadDatosHospitalarios.VERSION_POLITICA);
+    }
+
     private RegistroHospitalarioImportado registro(int fila,String servicio,int pacientes,int camas,int diasCama) {
         RegistroHospitalarioImportado r=new RegistroHospitalarioImportado(); r.setNumeroFila(fila);
         r.setCodigoIpress("0001"); r.setAnio(2026); r.setMes(1); r.setServicioHospitalario(servicio);

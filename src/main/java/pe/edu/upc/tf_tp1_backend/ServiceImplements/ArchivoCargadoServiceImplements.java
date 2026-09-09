@@ -164,7 +164,9 @@ public class ArchivoCargadoServiceImplements implements IArchivoCargadoInterface
                                 archivo.getIdArchivo()
                         )
                         .stream()
-                        .filter(prediccion -> !Boolean.FALSE.equals(prediccion.getVigente()))
+                        .filter(prediccion -> Boolean.TRUE.equals(prediccion.getVigente()))
+                        .filter(prediccion -> PrediccionBinariaAutomaticaService.MODELO
+                                .equals(prediccion.getModeloUtilizado()))
                         .count())
         );
 

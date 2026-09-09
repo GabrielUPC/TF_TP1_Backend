@@ -12,12 +12,15 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import pe.edu.upc.tf_tp1_backend.ServiceImplements.JwtUserDetailsService;
 
 import java.io.IOException;
 
 @Component
 public class JwtRequestFilter extends OncePerRequestFilter {
+    private static final Logger LOGGER = LoggerFactory.getLogger(JwtRequestFilter.class);
 
     @Autowired
     private JwtUserDetailsService jwtUserDetailsService;
@@ -44,13 +47,10 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             try {
                 correo = jwtTokenUtil.getUsernameFromToken(jwtToken);
             } catch (IllegalArgumentException e) {
-                System.out.println("No se puede obtener el correo desde el token JWT.");
+                LOGGER.debug("No se pudo obtener el correo del token JWT.");
             } catch (ExpiredJwtException e) {
-                System.out.println("El token JWT ha expirado.");
+                LOGGER.debug("El token JWT ha expirado.");
             }
-
-        } else {
-            System.out.println("El token JWT no inicia con Bearer o no fue enviado.");
         }
 
         if (correo != null && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -75,5 +75,11 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         }
 
         chain.doFilter(request, response);
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return "OPTIONS".equalsIgnoreCase(request.getMethod())
+                || "/login".equals(request.getServletPath());
     }
 }

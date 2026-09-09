@@ -45,7 +45,6 @@ import pe.edu.upc.tf_tp1_backend.Repositories.IRegistroPendienteCalidadDatosRepo
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IExcelHospitalarioInterfaces;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IIndicadorHospitalarioInterfaces;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IPrediccionRiesgoInterfaces;
-import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IReporteInterfaces;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -64,9 +63,6 @@ public class ExcelHospitalarioServiceImplements
 
     @Autowired
     private IArchivoCargadoRepository archivoRepository;
-
-    @Autowired
-    private IReporteInterfaces reporteService;
 
     @Autowired
     private IRegistroHospitalarioRepository registroRepository;
@@ -216,7 +212,7 @@ public class ExcelHospitalarioServiceImplements
         prediccionService.invalidarPorPendientes(tratamiento.hallazgos());
         if (tratamiento.gruposPendientes() > 0) {
             transformacion.getAdvertencias().add(
-                    tratamiento.gruposPendientes() + " grupos quedaron sin prediccion: datos pendientes de validacion Q05/Q06."
+                    tratamiento.gruposPendientes() + " grupos quedaron pendientes de validacion Q05/Q06/Q07/Q08."
             );
         }
         List<RegistroHospitalarioImportado> consolidados =
@@ -267,12 +263,6 @@ public class ExcelHospitalarioServiceImplements
         registroRepository.saveAll(registros);
 
         indicadorService.calcularPorArchivo(archivoCargado.getIdArchivo());
-        prediccionService.predecirPorArchivo(archivoCargado.getIdArchivo());
-        reporteService.generarPorArchivo(
-                archivoCargado.getIdArchivo(),
-                usuarioSolicitado.getIdUsuario()
-        );
-
         boolean parcial = tratamiento.gruposPendientes() > 0;
         archivoCargado.setEstadoValidacion(parcial ? "VALIDADO_CON_PENDIENTES" : "VALIDADO");
         archivoCargado.setEstadoProcesamiento(parcial ? "PROCESADO_PARCIAL" : "PROCESADO");
@@ -281,7 +271,7 @@ public class ExcelHospitalarioServiceImplements
         String mensaje = "Archivo procesado correctamente. Formato detectado: "
                 + deteccion.getFormato().name()
                 + ". Registros validos: " + registros.size()
-                + ". Predicciones generadas: " + registros.size() + ".";
+                + ". Indicadores calculados. La prediccion se genera solo al analizar un periodo.";
 
         ResumenCargaExcelDTO resumen = construirResumen(
                 archivoCargado,
@@ -289,7 +279,7 @@ public class ExcelHospitalarioServiceImplements
                 deteccion,
                 transformacion,
                 registros.size(),
-                registros.size(),
+                0,
                 mensaje
         );
         return agregarPendientes(resumen, tratamiento);

@@ -11,6 +11,7 @@ import pe.edu.upc.tf_tp1_backend.Exceptions.PrediccionBinariaAutomaticaException
 import pe.edu.upc.tf_tp1_backend.ServiceImplements.PrediccionBinariaAutomaticaService;
 
 import java.util.List;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -29,13 +30,14 @@ class PrediccionBinariaAutomaticaControllerTest {
         PrediccionBinariaAutomaticaService servicio = mock(PrediccionBinariaAutomaticaService.class);
         PrediccionBinariaAutomaticaRequestDTO solicitud = new PrediccionBinariaAutomaticaRequestDTO();
         ModeloPrediccionBinariaResponseDTO esperada = new ModeloPrediccionBinariaResponseDTO();
-        when(servicio.predecir(solicitud)).thenReturn(esperada);
+        when(servicio.predecir(solicitud, "hospital@prueba.pe")).thenReturn(esperada);
 
         ModeloPrediccionBinariaResponseDTO recibida =
-                new PrediccionBinariaAutomaticaController(servicio).predecir(solicitud);
+                new PrediccionBinariaAutomaticaController(servicio).predecir(
+                        solicitud, new UsernamePasswordAuthenticationToken("hospital@prueba.pe", null));
 
         assertSame(esperada, recibida);
-        verify(servicio).predecir(solicitud);
+        verify(servicio).predecir(solicitud, "hospital@prueba.pe");
     }
 
     @Test

@@ -3,310 +3,169 @@ package pe.edu.upc.tf_tp1_backend.ServiceImplements;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import pe.edu.upc.tf_tp1_backend.DTOS.ModeloPrediccionBinariaResponseDTO;
-import pe.edu.upc.tf_tp1_backend.DTOS.ModeloPrediccionRequestDTO;
-import pe.edu.upc.tf_tp1_backend.DTOS.PrediccionBinariaAutomaticaRequestDTO;
-import pe.edu.upc.tf_tp1_backend.Entities.ArchivoCargado;
-import pe.edu.upc.tf_tp1_backend.Entities.Ipress;
-import pe.edu.upc.tf_tp1_backend.Entities.RegistroHospitalario;
-import pe.edu.upc.tf_tp1_backend.Exceptions.PrediccionBinariaAutomaticaException;
+import pe.edu.upc.tf_tp1_backend.DTOS.*;
+import pe.edu.upc.tf_tp1_backend.Entities.*;
 import pe.edu.upc.tf_tp1_backend.Enums.NivelRiesgoPresentacion;
-import pe.edu.upc.tf_tp1_backend.Repositories.CalidadInferenciaRepository;
-import pe.edu.upc.tf_tp1_backend.Repositories.IIpressRepository;
-import pe.edu.upc.tf_tp1_backend.Repositories.IRegistroHospitalarioRepository;
+import pe.edu.upc.tf_tp1_backend.Exceptions.PrediccionBinariaAutomaticaException;
+import pe.edu.upc.tf_tp1_backend.Repositories.*;
 
+import java.time.LocalDateTime;
 import java.time.YearMonth;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class PrediccionBinariaAutomaticaServiceTest {
-    private IIpressRepository ipressRepository;
-    private IRegistroHospitalarioRepository registroRepository;
-    private CalidadInferenciaRepository calidadRepository;
-    private ModeloPredictivoClientService modeloClient;
+    private IUsuarioRepository usuarios;
+    private IRegistroHospitalarioRepository registros;
+    private IIndicadorHospitalarioRepository indicadores;
+    private IPrediccionRiesgoRepository predicciones;
+    private CalidadInferenciaRepository calidad;
+    private ModeloPredictivoClientService modelo;
     private PrediccionBinariaAutomaticaService servicio;
     private Ipress ipress;
 
     @BeforeEach
     void preparar() {
-        ipressRepository = mock(IIpressRepository.class);
-        registroRepository = mock(IRegistroHospitalarioRepository.class);
-        calidadRepository = mock(CalidadInferenciaRepository.class);
-        modeloClient = mock(ModeloPredictivoClientService.class);
+        usuarios = mock(IUsuarioRepository.class); registros = mock(IRegistroHospitalarioRepository.class);
+        indicadores = mock(IIndicadorHospitalarioRepository.class); predicciones = mock(IPrediccionRiesgoRepository.class);
+        calidad = mock(CalidadInferenciaRepository.class); modelo = mock(ModeloPredictivoClientService.class);
         servicio = new PrediccionBinariaAutomaticaService(
-                ipressRepository, registroRepository, calidadRepository, modeloClient);
-        ipress = new Ipress(10L, "00005617", "IPRESS PRUEBA", "II-2", "150101",
-                "LIMA", "LIMA", "LIMA");
-        when(ipressRepository.findByCodigoRenipressIgnoreCase("00005617"))
-                .thenReturn(Optional.of(ipress));
-        when(calidadRepository.existePendiente(anyLong(), anyString(), any(), any()))
-                .thenReturn(false);
-        when(modeloClient.predecirBinario(any())).thenReturn(respuestaValida());
+                usuarios, registros, indicadores, predicciones, calidad, modelo);
+        ipress = new Ipress(10L, "00005617", "IPRESS", "II-2", "150101", "LIMA", "LIMA", "LIMA");
+        Rol rol = new Rol(); rol.setNombreRol("ATENCION_HOSPITALIZACION");
+        Usuario usuario = new Usuario(); usuario.setCorreo("hospital@prueba.pe"); usuario.setEstado(true);
+        usuario.setRol(rol); usuario.setIpress(ipress);
+        when(usuarios.findByCorreo("hospital@prueba.pe")).thenReturn(Optional.of(usuario));
+        when(calidad.existePendiente(anyLong(), anyString(), any(), any())).thenReturn(false);
+        when(registros.buscarPorIpress(10L)).thenReturn(ventana());
+        when(modelo.predecirBinario(any())).thenReturn(respuesta());
+        when(indicadores.findByRegistroHospitalario_IdRegistro(anyInt()))
+                .thenAnswer(i -> Optional.of(indicador(i.getArgument(0))));
+        when(predicciones.findByIndicadorHospitalario_IdIndicador(anyInt())).thenReturn(Optional.empty());
+        when(predicciones.findByIndicadorHospitalario_RegistroHospitalario_ArchivoCargado_Ipress_IdIpress(10L))
+                .thenReturn(List.of());
     }
 
     @Test
-    void seisPeriodosConsecutivosValidosGeneranInferencia() {
-        prepararVentana(ventanaCompleta());
-
-        ModeloPrediccionBinariaResponseDTO respuesta = servicio.predecir(solicitud());
-
-        assertEquals(0.41, respuesta.getProbabilidadAltaPresion());
-        assertEquals(NivelRiesgoPresentacion.ALTO, respuesta.getNivelRiesgo());
-        assertEquals("2025-07", respuesta.getPeriodoPredicho());
-        verify(modeloClient).predecirBinario(any());
+    void usaIpressDelJwtEnviaCincoHistoricosLlamaUnaVezYPersiste() {
+        ModeloPrediccionBinariaResponseDTO r = servicio.predecir(solicitud(), "hospital@prueba.pe");
+        assertEquals(0.41, r.getProbabilidadAltaPresion());
+        ArgumentCaptor<ModeloPrediccionRequestDTO> request = ArgumentCaptor.forClass(ModeloPrediccionRequestDTO.class);
+        verify(modelo, times(1)).predecirBinario(request.capture());
+        assertEquals(5, request.getValue().getHistorialUltimosMeses().size());
+        assertEquals(List.of(1,2,3,4,5), request.getValue().getHistorialUltimosMeses().stream()
+                .map(ModeloDatosHospitalariosDTO::getMes).toList());
+        assertEquals(6, request.getValue().getRegistroActual().getMes());
+        ArgumentCaptor<PrediccionRiesgo> guardada = ArgumentCaptor.forClass(PrediccionRiesgo.class);
+        verify(predicciones).save(guardada.capture());
+        assertEquals("modelo_ipress_binario_v1", guardada.getValue().getModeloUtilizado());
+        assertEquals("2025-07", guardada.getValue().getPeriodoPredicho());
+        assertTrue(guardada.getValue().getAlertaAltaPresion());
     }
 
     @Test
-    void cincoPeriodosDevuelvenHistorialInsuficiente() {
-        List<RegistroHospitalario> registros = ventanaCompleta();
-        registros.remove(0);
-        prepararVentana(registros);
-
-        assertCodigo("HISTORIAL_INSUFICIENTE", () -> servicio.predecir(solicitud()));
-        verifyNoInteractions(modeloClient);
+    void usuarioNoPuedeElegirOtraIpress() {
+        servicio.predecir(solicitud(), "hospital@prueba.pe");
+        verify(registros).buscarPorIpress(10L);
+        verify(registros, never()).buscarPorIpress(argThat(id -> id != null && id != 10L));
     }
 
     @Test
-    void mesIntermedioAusenteSeDistingue() {
-        List<RegistroHospitalario> registros = ventanaCompleta();
-        registros.remove(2);
-        prepararVentana(registros);
-
-        PrediccionBinariaAutomaticaException error = assertCodigo(
-                "MES_INTERMEDIO_FALTANTE", () -> servicio.predecir(solicitud()));
-        assertEquals(List.of("2025-03"), error.getPeriodosFaltantes());
+    void huecoIntermedioNoLlegaAFastApi() {
+        List<RegistroHospitalario> v = new ArrayList<>(ventana()); v.remove(2);
+        when(registros.buscarPorIpress(10L)).thenReturn(v);
+        assertCodigo("MES_INTERMEDIO_FALTANTE", () -> servicio.predecir(solicitud(), "hospital@prueba.pe"));
+        verifyNoInteractions(modelo);
     }
 
     @Test
-    void ipressInexistenteNoConsultaRegistros() {
-        when(ipressRepository.findByCodigoRenipressIgnoreCase("00005617"))
-                .thenReturn(Optional.empty());
-
-        assertCodigo("IPRESS_NO_EXISTE", () -> servicio.predecir(solicitud()));
-        verifyNoInteractions(registroRepository, modeloClient);
+    void pendienteCalidadNoLlegaAFastApiNiCatalogo() {
+        when(calidad.existePendiente(eq(10L), eq("MEDICINA"), any(), any())).thenReturn(true);
+        assertCodigo("CALIDAD_PENDIENTE", () -> servicio.predecir(solicitud(), "hospital@prueba.pe"));
+        assertTrue(servicio.catalogo("hospital@prueba.pe").getServicios().isEmpty());
+        verifyNoInteractions(modelo);
     }
 
     @Test
-    void servicioInexistenteSeDistingue() {
-        prepararVentana(List.of());
-        when(registroRepository
-                .existsByArchivoCargado_Ipress_IdIpressAndServicioHospitalarioIgnoreCase(10L, "MEDICINA"))
-                .thenReturn(false);
-
-        assertCodigo("SERVICIO_NO_EXISTE", () -> servicio.predecir(solicitud()));
-        verifyNoInteractions(modeloClient);
+    void duplicadosIdenticosEligenUltimaVersionValidada() {
+        List<RegistroHospitalario> v = new ArrayList<>(ventana());
+        RegistroHospitalario ultima = registro(2025, 3, 99);
+        ultima.getArchivoCargado().setFechaCarga(LocalDateTime.of(2026, 1, 1, 0, 0));
+        v.add(ultima); when(registros.buscarPorIpress(10L)).thenReturn(v);
+        servicio.predecir(solicitud(), "hospital@prueba.pe");
+        ArgumentCaptor<ModeloPrediccionRequestDTO> captor = ArgumentCaptor.forClass(ModeloPrediccionRequestDTO.class);
+        verify(modelo).predecirBinario(captor.capture());
+        assertEquals(3, captor.getValue().getHistorialUltimosMeses().get(2).getMes());
     }
 
     @Test
-    void servicioFueraDeFamilias24Y25SeRechaza() {
-        List<RegistroHospitalario> registros = ventanaCompleta();
-        registros.forEach(r -> r.setIdHospitalizacion("220100"));
-        prepararVentana(registros);
-
-        assertCodigo("SERVICIO_FUERA_ALCANCE", () -> servicio.predecir(solicitud()));
-        verifyNoInteractions(modeloClient);
+    void duplicadosDiferentesBloqueanSinElegirArbitrariamente() {
+        List<RegistroHospitalario> v = new ArrayList<>(ventana());
+        RegistroHospitalario conflicto = registro(2025, 3, 99); conflicto.setIngresos(999); v.add(conflicto);
+        when(registros.buscarPorIpress(10L)).thenReturn(v);
+        PrediccionBinariaAutomaticaException e = assertCodigo(
+                "PERIODO_CONFLICTIVO", () -> servicio.predecir(solicitud(), "hospital@prueba.pe"));
+        assertEquals(409, e.getStatus().value()); verifyNoInteractions(modelo);
     }
 
     @Test
-    void pendienteDeCalidadImpideInferencia() {
-        prepararVentana(ventanaCompleta());
-        when(calidadRepository.existePendiente(
-                eq(10L), eq("MEDICINA"), eq(YearMonth.of(2025, 1)), eq(YearMonth.of(2025, 6))))
-                .thenReturn(true);
-
-        assertCodigo("CALIDAD_PENDIENTE", () -> servicio.predecir(solicitud()));
-        verifyNoInteractions(modeloClient);
+    void catalogoSoloPublicaPeriodoConSeisMesesValidos() {
+        CatalogoPrediccionBinariaDTO c = servicio.catalogo("hospital@prueba.pe");
+        assertEquals("00005617", c.getCodigoIpress());
+        assertEquals(List.of("2025-06"), c.getServicios().get(0).getPeriodosDisponibles());
     }
 
     @Test
-    void servicioSoloPendienteNoSeConfundeConServicioInexistente() {
-        prepararVentana(List.of());
-        when(calidadRepository.existePendiente(
-                eq(10L), eq("MEDICINA"), eq(YearMonth.of(2025, 1)), eq(YearMonth.of(2025, 6))))
-                .thenReturn(true);
-
-        assertCodigo("CALIDAD_PENDIENTE", () -> servicio.predecir(solicitud()));
-
-        verify(registroRepository, never())
-                .existsByArchivoCargado_Ipress_IdIpressAndServicioHospitalarioIgnoreCase(anyLong(), anyString());
-        verifyNoInteractions(modeloClient);
+    void servicioFueraDe24y25SeRechaza() {
+        List<RegistroHospitalario> v = ventana(); v.forEach(r -> r.setIdHospitalizacion("220100"));
+        when(registros.buscarPorIpress(10L)).thenReturn(v);
+        assertCodigo("SERVICIO_FUERA_ALCANCE", () -> servicio.predecir(solicitud(), "hospital@prueba.pe"));
     }
 
     @Test
-    void archivoRechazadoSeTrataComoCalidadInvalida() {
-        List<RegistroHospitalario> registros = ventanaCompleta();
-        registros.get(1).getArchivoCargado().setEstadoValidacion("RECHAZADO");
-        prepararVentana(registros);
-
-        assertCodigo("CALIDAD_INVALIDA", () -> servicio.predecir(solicitud()));
-        verifyNoInteractions(modeloClient);
-    }
-
-    @Test
-    void periodoDuplicadoProduceConflictoSinElegirRegistro() {
-        List<RegistroHospitalario> registros = ventanaCompleta();
-        registros.add(registro(2025, 3));
-        prepararVentana(registros);
-
-        PrediccionBinariaAutomaticaException error = assertCodigo(
-                "PERIODO_DUPLICADO", () -> servicio.predecir(solicitud()));
-        assertEquals(409, error.getStatus().value());
-        verifyNoInteractions(modeloClient);
-    }
-
-    @Test
-    void ordenDeBaseDeDatosNoAfectaOrdenCronologicoEnviado() {
-        List<RegistroHospitalario> registros = ventanaCompleta();
-        Collections.reverse(registros);
-        prepararVentana(registros);
-
-        servicio.predecir(solicitud());
-
-        ArgumentCaptor<ModeloPrediccionRequestDTO> captor =
-                ArgumentCaptor.forClass(ModeloPrediccionRequestDTO.class);
-        verify(modeloClient).predecirBinario(captor.capture());
-        assertEquals(List.of(1, 2, 3, 4, 5), captor.getValue().getHistorialUltimosMeses()
-                .stream().map(d -> d.getMes()).toList());
-        assertEquals(6, captor.getValue().getRegistroActual().getMes());
-    }
-
-    @Test
-    void fastApiNoSeInvocaConPeriodoActualAusente() {
-        List<RegistroHospitalario> registros = ventanaCompleta();
-        registros.remove(5);
-        prepararVentana(registros);
-
-        assertCodigo("HISTORIAL_INSUFICIENTE", () -> servicio.predecir(solicitud()));
-        verifyNoInteractions(modeloClient);
-    }
-
-    @Test
-    void fastApiSeInvocaExactamenteUnaVezConCincoMesesDeHistorial() {
-        prepararVentana(ventanaCompleta());
-
-        servicio.predecir(solicitud());
-
-        ArgumentCaptor<ModeloPrediccionRequestDTO> captor =
-                ArgumentCaptor.forClass(ModeloPrediccionRequestDTO.class);
-        verify(modeloClient, times(1)).predecirBinario(captor.capture());
-        assertEquals(5, captor.getValue().getHistorialUltimosMeses().size());
-    }
-
-    @Test
-    void requestAlModeloNoContieneInformacionPosteriorAT() {
-        prepararVentana(ventanaCompleta());
-
-        servicio.predecir(solicitud());
-
-        ArgumentCaptor<ModeloPrediccionRequestDTO> captor =
-                ArgumentCaptor.forClass(ModeloPrediccionRequestDTO.class);
-        verify(modeloClient).predecirBinario(captor.capture());
-        assertTrue(captor.getValue().getHistorialUltimosMeses().stream()
-                .allMatch(d -> YearMonth.of(d.getAnio(), d.getMes()).isBefore(YearMonth.of(2025, 6))));
-        assertEquals(YearMonth.of(2025, 6), YearMonth.of(
-                captor.getValue().getRegistroActual().getAnio(),
-                captor.getValue().getRegistroActual().getMes()));
-    }
-
-    @Test
-    void conservaThreshold036() {
-        prepararVentana(ventanaCompleta());
-        assertEquals(0.36, servicio.predecir(solicitud()).getThreshold());
-    }
-
-    @Test
-    void conservaAlertaCoherenteConProbabilidad() {
-        prepararVentana(ventanaCompleta());
-        ModeloPrediccionBinariaResponseDTO respuesta = servicio.predecir(solicitud());
-        assertEquals(respuesta.getProbabilidadAltaPresion() >= respuesta.getThreshold(),
-                respuesta.getAlertaAltaPresion());
-    }
-
-    @Test
-    void periodoSolicitadoSeUsaComoLimiteExactoDeConsulta() {
-        prepararVentana(ventanaCompleta());
-
-        servicio.predecir(solicitud());
-
-        verify(registroRepository).buscarVentanaInferencia(10L, "MEDICINA", 2025, 1, 2025, 6);
-    }
-
-    private void prepararVentana(List<RegistroHospitalario> registros) {
-        when(registroRepository.buscarVentanaInferencia(
-                anyLong(), anyString(), anyInt(), anyInt(), anyInt(), anyInt()))
-                .thenReturn(registros);
-    }
-
-    private List<RegistroHospitalario> ventanaCompleta() {
-        List<RegistroHospitalario> registros = new ArrayList<>();
-        for (int mes = 1; mes <= 6; mes++) registros.add(registro(2025, mes));
-        return registros;
-    }
-
-    private RegistroHospitalario registro(int anio, int mes) {
-        ArchivoCargado archivo = new ArchivoCargado();
-        archivo.setIdArchivo((long) mes);
-        archivo.setIpress(ipress);
-        archivo.setEstadoValidacion("VALIDADO");
-        RegistroHospitalario registro = new RegistroHospitalario();
-        registro.setIdRegistro(anio * 100 + mes);
-        registro.setArchivoCargado(archivo);
-        registro.setAnio(anio);
-        registro.setMes(mes);
-        registro.setServicioHospitalario("MEDICINA");
-        registro.setIdHospitalizacion("241800");
-        registro.setSector("MINSA");
-        registro.setIngresos(20);
-        registro.setEgresos(18);
-        registro.setEstancias(120);
-        registro.setPacientesCama(240);
-        registro.setCamasTotales(10);
-        registro.setTotalCamasDisponibles(300);
-        registro.setFallecidos(1);
-        return registro;
+    void usuarioSinRolHospitalarioRecibe403() {
+        Usuario u = usuarios.findByCorreo("hospital@prueba.pe").orElseThrow();
+        u.getRol().setNombreRol("ADMISION_REGISTROS");
+        PrediccionBinariaAutomaticaException e = assertCodigo(
+                "IPRESS_NO_AUTORIZADA", () -> servicio.predecir(solicitud(), "hospital@prueba.pe"));
+        assertEquals(403, e.getStatus().value());
     }
 
     private PrediccionBinariaAutomaticaRequestDTO solicitud() {
-        PrediccionBinariaAutomaticaRequestDTO dto = new PrediccionBinariaAutomaticaRequestDTO();
-        dto.setCodigoIpress("00005617");
-        dto.setServicio("MEDICINA");
-        dto.setPeriodoActual("2025-06");
-        return dto;
+        PrediccionBinariaAutomaticaRequestDTO d = new PrediccionBinariaAutomaticaRequestDTO();
+        d.setServicio("  medicina "); d.setPeriodoActual("2025-06"); return d;
     }
-
-    private ModeloPrediccionBinariaResponseDTO respuestaValida() {
-        ModeloPrediccionBinariaResponseDTO dto = new ModeloPrediccionBinariaResponseDTO();
-        dto.setProbabilidadAltaPresion(0.41);
-        dto.setThreshold(0.36);
-        dto.setAlertaAltaPresion(true);
-        dto.setNivelRiesgo(NivelRiesgoPresentacion.ALTO);
-        dto.setDescripcionRiesgo(NivelRiesgoPresentacion.ALTO.getDescripcion());
-        dto.setUmbralBajoMedio(NivelRiesgoPresentacion.UMBRAL_BAJO_MEDIO);
-        dto.setCodigoIpress("00005617");
-        dto.setServicioHospitalizacion("MEDICINA");
-        dto.setPeriodoActual("2025-06");
-        dto.setPeriodoPredicho("2025-07");
-        dto.setHorizontePrediccion("mes_siguiente");
-        dto.setModelo("modelo_ipress_binario_v1");
-        return dto;
+    private List<RegistroHospitalario> ventana() {
+        List<RegistroHospitalario> v = new ArrayList<>();
+        for (int m=1;m<=6;m++) v.add(registro(2025,m,m));
+        return v;
     }
-
-    private PrediccionBinariaAutomaticaException assertCodigo(
-            String codigo,
-            org.junit.jupiter.api.function.Executable accion
-    ) {
-        PrediccionBinariaAutomaticaException error = assertThrows(
-                PrediccionBinariaAutomaticaException.class, accion);
-        assertEquals(codigo, error.getCodigo());
-        return error;
+    private RegistroHospitalario registro(int anio, int mes, long idArchivo) {
+        ArchivoCargado a = new ArchivoCargado(); a.setIdArchivo(idArchivo); a.setIpress(ipress);
+        a.setEstadoValidacion("VALIDADO"); a.setFechaCarga(LocalDateTime.of(2025, mes, 1, 0, 0));
+        RegistroHospitalario r = new RegistroHospitalario(); r.setIdRegistro(anio*100+mes+(int)idArchivo);
+        r.setArchivoCargado(a); r.setAnio(anio); r.setMes(mes); r.setServicioHospitalario("MEDICINA");
+        r.setIdHospitalizacion("241800"); r.setSector("MINSA"); r.setIngresos(20); r.setEgresos(18);
+        r.setEstancias(120); r.setPacientesCama(240); r.setCamasTotales(10);
+        r.setTotalCamasDisponibles(300); r.setFallecidos(1); return r;
+    }
+    private IndicadorHospitalario indicador(int idRegistro) {
+        IndicadorHospitalario i = new IndicadorHospitalario(); i.setIdIndicador(idRegistro);
+        i.setRegistroHospitalario(ventana().get(5)); return i;
+    }
+    private ModeloPrediccionBinariaResponseDTO respuesta() {
+        ModeloPrediccionBinariaResponseDTO d = new ModeloPrediccionBinariaResponseDTO();
+        d.setProbabilidadAltaPresion(.41); d.setThreshold(.36); d.setAlertaAltaPresion(true);
+        d.setNivelRiesgo(NivelRiesgoPresentacion.ALTO); d.setDescripcionRiesgo("Alta presion");
+        d.setUmbralBajoMedio(.20); d.setCodigoIpress("00005617"); d.setServicioHospitalizacion("MEDICINA");
+        d.setPeriodoActual("2025-06"); d.setPeriodoPredicho("2025-07");
+        d.setHorizontePrediccion("mes_siguiente"); d.setModelo("modelo_ipress_binario_v1"); return d;
+    }
+    private PrediccionBinariaAutomaticaException assertCodigo(String c, org.junit.jupiter.api.function.Executable x) {
+        PrediccionBinariaAutomaticaException e = assertThrows(PrediccionBinariaAutomaticaException.class, x);
+        assertEquals(c, e.getCodigo()); return e;
     }
 }

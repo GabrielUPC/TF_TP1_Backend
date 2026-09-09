@@ -14,9 +14,13 @@ public class TransformadorFormatoInterno {
                 new ResultadoTransformacionHospitalaria();
 
         for (FilaArchivoHospitalario fila : contenido.getFilas()) {
-            String codigoIpress = TransformacionHospitalariaUtil.texto(
-                    fila.get("codigo_ipress")
-            );
+            String codigoIpress;
+            try {
+                codigoIpress = NormalizacionPredictiva.renipress(fila.get("codigo_ipress"));
+            } catch (IllegalArgumentException error) {
+                resultado.incrementarFilasInvalidas();
+                continue;
+            }
             if (!TransformacionHospitalariaUtil.coincideIpress(
                     codigoIpress,
                     ipress.getCodigoRenipress()
@@ -32,9 +36,7 @@ public class TransformadorFormatoInterno {
             Integer mes = TransformacionHospitalariaUtil.enteroNoNegativo(
                     fila.get("mes")
             );
-            String servicio = TransformacionHospitalariaUtil.texto(
-                    fila.get("servicio_hospitalario")
-            );
+            String servicio = NormalizacionPredictiva.texto(fila.get("servicio_hospitalario"));
             Integer ingresos = numero(fila, "ingresos");
             Integer egresos = numero(fila, "egresos");
             Integer estancias = numero(fila, "estancias");

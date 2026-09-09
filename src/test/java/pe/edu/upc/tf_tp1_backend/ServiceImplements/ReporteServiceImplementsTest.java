@@ -5,6 +5,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.server.ResponseStatusException;
+import pe.edu.upc.tf_tp1_backend.DTOS.ReporteDTO;
 import pe.edu.upc.tf_tp1_backend.DTOS.ReporteListDTO;
 import pe.edu.upc.tf_tp1_backend.Entities.ArchivoCargado;
 import pe.edu.upc.tf_tp1_backend.Entities.IndicadorHospitalario;
@@ -23,6 +25,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -72,6 +76,27 @@ class ReporteServiceImplementsTest {
         assertEquals(1, dto.getMesPredicho());
     }
 
+    @Test
+    void noGeneraReporteParaPrediccionLegacyONoVigente() {
+        Ipress ipress = ipress(1L, "00007636");
+        when(usuarioRepository.findByCorreo("hospital@correo.pe"))
+                .thenReturn(Optional.of(usuarioHospitalizacion(ipress)));
+        PrediccionRiesgo prediccion = reporte(
+                1, ipress, 5L, 2016, 12, "UCI", "ALTO"
+        ).getPrediccionRiesgo();
+        prediccion.setModeloUtilizado("XGBoost - FastAPI");
+        when(prediccionRepository.findById(1)).thenReturn(Optional.of(prediccion));
+        ReporteDTO solicitud = new ReporteDTO();
+        solicitud.setIdPrediccion(1);
+
+        ResponseStatusException error = assertThrows(
+                ResponseStatusException.class,
+                () -> service.generarReporte("hospital@correo.pe", solicitud));
+
+        assertEquals(404, error.getStatusCode().value());
+        verifyNoInteractions(reporteRepository);
+    }
+
     private Reporte reporte(
             int id,
             Ipress ipress,
@@ -102,7 +127,8 @@ class ReporteServiceImplementsTest {
         prediccion.setIndicadorHospitalario(indicador);
         prediccion.setNivelRiesgo(riesgo);
         prediccion.setProbabilidad(0.9);
-        prediccion.setModeloUtilizado("XGBoost - FastAPI");
+        prediccion.setModeloUtilizado("modelo_ipress_binario_v1");
+        prediccion.setVigente(true);
 
         Reporte reporte = new Reporte();
         reporte.setIdReporte(id);

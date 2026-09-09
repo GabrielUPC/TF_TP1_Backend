@@ -58,7 +58,9 @@ public class ReporteServiceImplements implements IReporteInterfaces {
         Long idIpress = usuario.getIpress().getIdIpress();
 
         List<PrediccionRiesgo> predicciones = pR.findAll().stream()
-                .filter(prediccion -> !Boolean.FALSE.equals(prediccion.getVigente()))
+                .filter(prediccion -> Boolean.TRUE.equals(prediccion.getVigente()))
+                .filter(prediccion -> PrediccionBinariaAutomaticaService.MODELO
+                        .equals(prediccion.getModeloUtilizado()))
                 .filter(prediccion -> prediccionPerteneceAIpress(prediccion, idIpress))
                 .filter(prediccion -> idArchivo.equals(obtenerIdArchivo(prediccion)))
                 .collect(Collectors.toList());
@@ -97,10 +99,13 @@ public class ReporteServiceImplements implements IReporteInterfaces {
                         "Prediccion de riesgo no encontrada"
                 ));
 
-        if (!prediccionPerteneceAIpress(prediccion, idIpress)) {
+        if (!prediccionPerteneceAIpress(prediccion, idIpress)
+                || !Boolean.TRUE.equals(prediccion.getVigente())
+                || !PrediccionBinariaAutomaticaService.MODELO.equals(
+                        prediccion.getModeloUtilizado())) {
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
-                    "Prediccion de riesgo no encontrada"
+                    "Prediccion binaria vigente no encontrada"
             );
         }
 
@@ -310,7 +315,9 @@ public class ReporteServiceImplements implements IReporteInterfaces {
 
         return reporte != null
                 && reporte.getPrediccionRiesgo() != null
-                && !Boolean.FALSE.equals(reporte.getPrediccionRiesgo().getVigente())
+                && Boolean.TRUE.equals(reporte.getPrediccionRiesgo().getVigente())
+                && PrediccionBinariaAutomaticaService.MODELO.equals(
+                        reporte.getPrediccionRiesgo().getModeloUtilizado())
                 && prediccionPerteneceAIpress(reporte.getPrediccionRiesgo(), idIpress);
     }
 
@@ -370,7 +377,11 @@ public class ReporteServiceImplements implements IReporteInterfaces {
         if (prediccion != null) {
             dto.setIdPrediccion(prediccion.getIdPrediccion());
             dto.setNivelRiesgo(prediccion.getNivelRiesgo());
-            dto.setProbabilidad(prediccion.getProbabilidad());
+            dto.setProbabilidadAltaPresion(prediccion.getProbabilidadAltaPresion());
+            dto.setThreshold(prediccion.getThreshold());
+            dto.setAlertaAltaPresion(prediccion.getAlertaAltaPresion());
+            dto.setDescripcionRiesgo(prediccion.getDescripcionRiesgo());
+            dto.setPeriodoPredicho(prediccion.getPeriodoPredicho());
             dto.setModeloUtilizado(prediccion.getModeloUtilizado());
             dto.setFechaPrediccion(prediccion.getFechaPrediccion());
 

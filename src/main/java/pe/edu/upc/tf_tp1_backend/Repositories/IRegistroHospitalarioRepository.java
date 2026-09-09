@@ -13,6 +13,15 @@ public interface IRegistroHospitalarioRepository extends JpaRepository<RegistroH
 
     List<RegistroHospitalario> findByArchivoCargado_IdArchivo(Long idArchivo);
 
+    @Query("""
+            select r from RegistroHospitalario r
+            join fetch r.archivoCargado a
+            join fetch a.ipress i
+            where i.idIpress = :idIpress
+            order by r.anio, r.mes, r.idRegistro
+            """)
+    List<RegistroHospitalario> buscarPorIpress(@Param("idIpress") Long idIpress);
+
     List<RegistroHospitalario> findByArchivoCargado_Ipress_IdIpressAndServicioHospitalarioIgnoreCase(
             Long idIpress,
             String servicioHospitalario

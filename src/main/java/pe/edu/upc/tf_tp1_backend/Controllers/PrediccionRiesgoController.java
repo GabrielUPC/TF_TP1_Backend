@@ -2,6 +2,7 @@ package pe.edu.upc.tf_tp1_backend.Controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 import pe.edu.upc.tf_tp1_backend.DTOS.PrediccionRiesgoListDTO;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IPrediccionRiesgoInterfaces;
 
@@ -9,6 +10,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/predicciones-riesgo")
+@PreAuthorize("hasRole('ADMINISTRADOR')")
 public class PrediccionRiesgoController {
 
     @Autowired

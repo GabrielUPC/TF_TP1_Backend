@@ -152,7 +152,7 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
         }
         if (esPeriodoPendiente(registro)) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "Sin prediccion: datos pendientes de validacion Q05/Q06.");
+                    "Sin prediccion: datos pendientes de validacion Q05/Q06/Q07/Q08.");
         }
 
         ModeloPrediccionRequestDTO solicitud = construirSolicitud(registro);
@@ -502,7 +502,7 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
     public void invalidarPorPendientes(List<HallazgoCalidadImportado> pendientes) {
         if (pendientes == null || pendientes.isEmpty()) return;
         List<PrediccionRiesgo> cambiadas = pR.findAll().stream().filter(p -> coincidePendiente(p, pendientes))
-                .peek(p -> { p.setVigente(false); p.setMotivoNoVigente("Sin prediccion vigente: datos pendientes de validacion Q05/Q06."); })
+                .peek(p -> { p.setVigente(false); p.setMotivoNoVigente("Sin prediccion vigente: datos pendientes de validacion Q05/Q06/Q07/Q08."); })
                 .toList();
         if (!cambiadas.isEmpty()) pR.saveAll(cambiadas);
     }
@@ -514,9 +514,14 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
         if (r == null || r.getArchivoCargado() == null || r.getArchivoCargado().getIpress() == null) return false;
         String codigo = r.getArchivoCargado().getIpress().getCodigoRenipress();
         YearMonth actual = obtenerPeriodo(r);
-        return pendientes.stream().anyMatch(h -> normalizar(h.codigoIpress()).equals(normalizar(codigo))
-                && normalizar(h.servicioHospitalario()).equals(normalizar(r.getServicioHospitalario()))
-                && (YearMonth.of(h.anio(),h.mes()).equals(actual) || YearMonth.of(h.anio(),h.mes()).equals(actual.plusMonths(1))));
+        return pendientes.stream().anyMatch(h -> {
+            if (!normalizar(h.codigoIpress()).equals(normalizar(codigo))
+                    || !normalizar(h.servicioHospitalario()).equals(
+                            normalizar(r.getServicioHospitalario()))) return false;
+            YearMonth pendiente = YearMonth.of(h.anio(), h.mes());
+            return !pendiente.isBefore(actual.minusMonths(5))
+                    && !pendiente.isAfter(actual.plusMonths(1));
+        });
     }
 
     private String normalizar(String v) { return v == null ? "" : v.trim().replaceAll("\\s+"," ").toUpperCase(Locale.ROOT); }

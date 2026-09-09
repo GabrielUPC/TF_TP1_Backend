@@ -29,7 +29,7 @@ public class CalidadInferenciaRepository {
         String jpql = "select count(e) from " + entidad + " e "
                 + "join e.archivoCargado a join a.ipress i "
                 + "where i.idIpress = :idIpress "
-                + "and lower(trim(e.servicioHospitalario)) = lower(trim(:servicio)) "
+                + "and e.servicioHospitalario = :servicio "
                 + "and (e.anio > :anioDesde or (e.anio = :anioDesde and e.mes >= :mesDesde)) "
                 + "and (e.anio < :anioHasta or (e.anio = :anioHasta and e.mes <= :mesHasta)) "
                 + "and e.estado = :estado";

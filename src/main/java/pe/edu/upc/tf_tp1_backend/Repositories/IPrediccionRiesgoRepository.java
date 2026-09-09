@@ -13,4 +13,8 @@ public interface IPrediccionRiesgoRepository extends JpaRepository<PrediccionRie
     Optional<PrediccionRiesgo> findByIndicadorHospitalario_IdIndicador(Integer idIndicador);
 
     List<PrediccionRiesgo> findByIndicadorHospitalario_RegistroHospitalario_ArchivoCargado_IdArchivo(Long idArchivo);
+
+    List<PrediccionRiesgo> findByIndicadorHospitalario_RegistroHospitalario_ArchivoCargado_Ipress_IdIpress(
+            Long idIpress
+    );
 }

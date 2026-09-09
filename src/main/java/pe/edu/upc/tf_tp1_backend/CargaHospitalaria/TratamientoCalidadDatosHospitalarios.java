@@ -5,13 +5,13 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
+import java.time.YearMonth;
 
 @Component
 public class TratamientoCalidadDatosHospitalarios {
 
-    public static final String VERSION_POLITICA = "capacidad_q05_q06_v1";
+    public static final String VERSION_POLITICA = "capacidad_q05_q06_q07_q08_v3";
 
     public ResultadoTratamientoCalidad aplicar(List<RegistroHospitalarioImportado> registros) {
         List<HallazgoCalidadImportado> hallazgos = new ArrayList<>();
@@ -22,11 +22,12 @@ public class TratamientoCalidadDatosHospitalarios {
                     || positivo(registro.getEstancias())
                     || positivo(registro.getPacientesCama());
             boolean q05 = cero(registro.getCamasTotales()) && actividad;
-            Integer diasCama = registro.getTotalCamasDisponibles() != null
-                    ? registro.getTotalCamasDisponibles()
-                    : registro.getCamasDisponiblesHabilitadas();
+            Double diasCama = diasCamaDisponibles(registro);
             boolean q06 = positivo(registro.getPacientesCama()) && cero(diasCama);
-            if (q05 || q06) {
+            boolean q07 = esQ07(registro);
+            boolean q08 = positivo(registro.getPacientesCama()) && positivo(diasCama)
+                    && registro.getPacientesCama().doubleValue() / diasCama.doubleValue() > 1.20;
+            if (q05 || q06 || q07 || q08) {
                 gruposPendientes.add(clave(registro));
             }
             if (q05) {
@@ -34,6 +35,14 @@ public class TratamientoCalidadDatosHospitalarios {
             }
             if (q06) {
                 hallazgos.add(hallazgo(registro, "Q06", "Pacientes-dia positivos con cero dias-cama disponibles."));
+            }
+            if (q07) {
+                hallazgos.add(hallazgo(registro, "Q07",
+                        "Camas = pacientes-dia por dias del mes: posible desorden de metricas; no se corrige automaticamente."));
+            }
+            if (q08) {
+                hallazgos.add(hallazgo(registro, "Q08",
+                        "Pacientes-dia / dias-cama disponibles supera 1.20."));
             }
         }
         List<RegistroHospitalarioImportado> validos = registros.stream()
@@ -61,9 +70,35 @@ public class TratamientoCalidadDatosHospitalarios {
     }
 
     private String normalizar(String valor) {
-        return valor == null ? "" : valor.trim().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
+        return NormalizacionPredictiva.texto(valor);
     }
 
-    private boolean positivo(Integer valor) { return valor != null && valor > 0; }
-    private boolean cero(Integer valor) { return valor != null && valor == 0; }
+    private Double diasCamaDisponibles(RegistroHospitalarioImportado registro) {
+        if (registro.getTotalCamasDisponibles() != null) {
+            return registro.getTotalCamasDisponibles().doubleValue();
+        }
+        if (registro.getCamasDisponiblesHabilitadas() == null
+                || registro.getAnio() == null || registro.getMes() == null) {
+            return null;
+        }
+        try {
+            return registro.getCamasDisponiblesHabilitadas().doubleValue()
+                    * YearMonth.of(registro.getAnio(), registro.getMes()).lengthOfMonth();
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private boolean positivo(Number valor) { return valor != null && valor.doubleValue() > 0; }
+    private boolean cero(Number valor) { return valor != null && valor.doubleValue() == 0; }
+    private boolean esQ07(RegistroHospitalarioImportado r) {
+        if (!positivo(r.getPacientesCama()) || !positivo(r.getCamasTotales())
+                || r.getAnio() == null || r.getMes() == null) return false;
+        try {
+            return r.getCamasTotales().longValue()
+                    == r.getPacientesCama().longValue() * YearMonth.of(r.getAnio(), r.getMes()).lengthOfMonth();
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
 }

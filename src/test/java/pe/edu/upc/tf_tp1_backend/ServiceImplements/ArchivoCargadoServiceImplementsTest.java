@@ -70,10 +70,7 @@ class ArchivoCargadoServiceImplementsTest {
                 .findByIndicadorHospitalario_RegistroHospitalario_ArchivoCargado_IdArchivo(
                         5L
                 ))
-                .thenReturn(List.of(
-                        new PrediccionRiesgo(),
-                        new PrediccionRiesgo()
-                ));
+                .thenReturn(List.of(prediccion("modelo_ipress_binario_v1"), prediccion("XGBoost - FastAPI")));
 
         List<ArchivoProcesadoDTO> resultado =
                 service.listarProcesadosPorUsuarioAutenticado(
@@ -87,7 +84,14 @@ class ArchivoCargadoServiceImplementsTest {
         assertEquals(2016, dto.getAnioMinimo());
         assertEquals(2017, dto.getAnioMaximo());
         assertEquals(2, dto.getRegistrosValidos());
-        assertEquals(2, dto.getPrediccionesGeneradas());
+        assertEquals(1, dto.getPrediccionesGeneradas());
+    }
+
+    private PrediccionRiesgo prediccion(String modelo) {
+        PrediccionRiesgo p = new PrediccionRiesgo();
+        p.setVigente(true);
+        p.setModeloUtilizado(modelo);
+        return p;
     }
 
     private ArchivoCargado archivo(

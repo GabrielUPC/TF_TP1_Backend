@@ -27,9 +27,13 @@ public class TransformadorD1 {
         int filasSinHospitalizacion = 0;
 
         for (FilaArchivoHospitalario fila : contenido.getFilas()) {
-            String codigoIpress = TransformacionHospitalariaUtil.texto(
-                    fila.get("codigo_ipress")
-            );
+            String codigoIpress;
+            try {
+                codigoIpress = NormalizacionPredictiva.renipress(fila.get("codigo_ipress"));
+            } catch (IllegalArgumentException error) {
+                resultado.incrementarFilasInvalidas();
+                continue;
+            }
             if (!TransformacionHospitalariaUtil.coincideIpress(
                     codigoIpress,
                     ipress.getCodigoRenipress()
@@ -39,12 +43,8 @@ public class TransformadorD1 {
             }
             resultado.incrementarFilasCoincidentesIpress();
 
-            String idHospitalizacion = TransformacionHospitalariaUtil.texto(
-                    fila.get("id_hospitalizacion")
-            );
-            String servicio = TransformacionHospitalariaUtil.texto(
-                    fila.get("servicio_hospitalario")
-            );
+            String idHospitalizacion = NormalizacionPredictiva.texto(fila.get("id_hospitalizacion"));
+            String servicio = NormalizacionPredictiva.texto(fila.get("servicio_hospitalario"));
             if (TransformacionHospitalariaUtil.esSinInformacion(idHospitalizacion)
                     || servicio.isBlank()
                     || contieneMarcadorNumerico(fila)) {
@@ -98,25 +98,25 @@ public class TransformadorD1 {
                     new RegistroHospitalarioImportado();
             registro.setNumeroFila(fila.getNumeroFila());
             registro.setCodigoIpress(codigoIpress);
-            registro.setNombreIpress(TransformacionHospitalariaUtil.texto(
+            registro.setNombreIpress(NormalizacionPredictiva.texto(
                     fila.get("razon_soc")
             ));
-            registro.setCategoriaIpress(TransformacionHospitalariaUtil.texto(
+            registro.setCategoriaIpress(NormalizacionPredictiva.texto(
                     fila.get("categoria")
             ));
             registro.setCodigoUbigeo(TransformacionHospitalariaUtil.texto(
                     fila.get("ubigeo")
             ));
-            registro.setDepartamento(TransformacionHospitalariaUtil.texto(
+            registro.setDepartamento(NormalizacionPredictiva.texto(
                     fila.get("departamento")
             ));
-            registro.setProvincia(TransformacionHospitalariaUtil.texto(
+            registro.setProvincia(NormalizacionPredictiva.texto(
                     fila.get("provincia")
             ));
-            registro.setDistrito(TransformacionHospitalariaUtil.texto(
+            registro.setDistrito(NormalizacionPredictiva.texto(
                     fila.get("distrito")
             ));
-            registro.setSector(TransformacionHospitalariaUtil.texto(
+            registro.setSector(NormalizacionPredictiva.texto(
                     fila.get("sector")
             ));
             registro.setIdHospitalizacion(idHospitalizacion);

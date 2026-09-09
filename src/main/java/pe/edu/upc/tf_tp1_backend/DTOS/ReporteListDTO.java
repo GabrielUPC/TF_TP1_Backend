@@ -25,7 +25,11 @@ public class ReporteListDTO {
     private Double rotacionCamas;
 
     private String nivelRiesgo;
-    private Double probabilidad;
+    private Double probabilidadAltaPresion;
+    private Double threshold;
+    private Boolean alertaAltaPresion;
+    private String descripcionRiesgo;
+    private String periodoPredicho;
     private String modeloUtilizado;
     private LocalDateTime fechaPrediccion;
 
@@ -169,13 +173,24 @@ public class ReporteListDTO {
         this.nivelRiesgo = nivelRiesgo;
     }
 
-    public Double getProbabilidad() {
-        return probabilidad;
+    public Double getProbabilidadAltaPresion() {
+        return probabilidadAltaPresion;
     }
 
-    public void setProbabilidad(Double probabilidad) {
-        this.probabilidad = probabilidad;
+    public void setProbabilidadAltaPresion(Double valor) {
+        this.probabilidadAltaPresion = valor;
     }
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public Double getProbabilidad() { return probabilidadAltaPresion; }
+    public void setProbabilidad(Double valor) { probabilidadAltaPresion = valor; }
+    public Double getThreshold() { return threshold; }
+    public void setThreshold(Double valor) { threshold = valor; }
+    public Boolean getAlertaAltaPresion() { return alertaAltaPresion; }
+    public void setAlertaAltaPresion(Boolean valor) { alertaAltaPresion = valor; }
+    public String getDescripcionRiesgo() { return descripcionRiesgo; }
+    public void setDescripcionRiesgo(String valor) { descripcionRiesgo = valor; }
+    public String getPeriodoPredicho() { return periodoPredicho; }
+    public void setPeriodoPredicho(String valor) { periodoPredicho = valor; }
 
     public String getModeloUtilizado() {
         return modeloUtilizado;

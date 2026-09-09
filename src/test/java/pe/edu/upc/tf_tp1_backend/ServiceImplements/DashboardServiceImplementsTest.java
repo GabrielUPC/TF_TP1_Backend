@@ -1,147 +1,82 @@
 package pe.edu.upc.tf_tp1_backend.ServiceImplements;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import pe.edu.upc.tf_tp1_backend.DTOS.DashboardDetalleDTO;
-import pe.edu.upc.tf_tp1_backend.Entities.ArchivoCargado;
-import pe.edu.upc.tf_tp1_backend.Entities.IndicadorHospitalario;
-import pe.edu.upc.tf_tp1_backend.Entities.Ipress;
-import pe.edu.upc.tf_tp1_backend.Entities.PrediccionRiesgo;
-import pe.edu.upc.tf_tp1_backend.Entities.RegistroHospitalario;
-import pe.edu.upc.tf_tp1_backend.Entities.Rol;
-import pe.edu.upc.tf_tp1_backend.Entities.Usuario;
-import pe.edu.upc.tf_tp1_backend.Repositories.IPrediccionRiesgoRepository;
-import pe.edu.upc.tf_tp1_backend.Repositories.IUsuarioRepository;
+import pe.edu.upc.tf_tp1_backend.Entities.*;
+import pe.edu.upc.tf_tp1_backend.Repositories.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.when;
-
-@ExtendWith(MockitoExtension.class)
 class DashboardServiceImplementsTest {
+    private IIndicadorHospitalarioRepository indicadores;
+    private IPrediccionRiesgoRepository predicciones;
+    private DashboardServiceImplements servicio;
+    private IndicadorHospitalario indicador;
 
-    @Mock
-    private IPrediccionRiesgoRepository prediccionRepository;
-
-    @Mock
-    private IUsuarioRepository usuarioRepository;
-
-    @InjectMocks
-    private DashboardServiceImplements service;
-
-    @Test
-    void filtraPorArchivoPeriodoServicioYSoloIpressAsignada() {
-        Ipress ipressAsignada = ipress(1L, "00007636");
-        Ipress otraIpress = ipress(2L, "00009999");
-        Usuario usuario = usuarioHospitalizacion(ipressAsignada);
-
-        PrediccionRiesgo esperada = prediccion(
-                1,
-                ipressAsignada,
-                5L,
-                2017,
-                1,
-                "UCI",
-                "ALTO"
-        );
-        PrediccionRiesgo otroArchivo = prediccion(
-                2,
-                ipressAsignada,
-                6L,
-                2017,
-                1,
-                "UCI",
-                "ALTO"
-        );
-        PrediccionRiesgo otraIpressPrediccion = prediccion(
-                3,
-                otraIpress,
-                5L,
-                2017,
-                1,
-                "UCI",
-                "ALTO"
-        );
-
-        when(usuarioRepository.findByCorreo("hospital@correo.pe"))
-                .thenReturn(Optional.of(usuario));
-        when(prediccionRepository.findAll()).thenReturn(
-                List.of(esperada, otroArchivo, otraIpressPrediccion)
-        );
-
-        List<DashboardDetalleDTO> resultado = service.filtrar(
-                "hospital@correo.pe",
-                5L,
-                2017,
-                1,
-                "UCI"
-        );
-
-        assertEquals(1, resultado.size());
-        DashboardDetalleDTO dto = resultado.get(0);
-        assertEquals(1, dto.getIdPrediccion());
-        assertEquals(5L, dto.getIdArchivo());
-        assertEquals("00007636", dto.getCodigoIpress());
-        assertEquals(2017, dto.getAnio());
-        assertEquals(1, dto.getMes());
-        assertEquals(2017, dto.getAnioPredicho());
-        assertEquals(2, dto.getMesPredicho());
+    @BeforeEach void preparar() {
+        indicadores = mock(IIndicadorHospitalarioRepository.class);
+        predicciones = mock(IPrediccionRiesgoRepository.class);
+        IUsuarioRepository usuarios = mock(IUsuarioRepository.class);
+        servicio = new DashboardServiceImplements(indicadores, predicciones, usuarios);
+        Ipress ipress = new Ipress(); ipress.setIdIpress(1L); ipress.setCodigoRenipress("00007636");
+        Rol rol = new Rol(); rol.setNombreRol("ATENCION_HOSPITALIZACION");
+        Usuario usuario = new Usuario(); usuario.setEstado(true); usuario.setRol(rol); usuario.setIpress(ipress);
+        when(usuarios.findByCorreo("hospital@correo.pe")).thenReturn(Optional.of(usuario));
+        indicador = indicador(ipress);
+        when(indicadores.buscarPorIpress(1L)).thenReturn(List.of(indicador));
     }
 
-    private Usuario usuarioHospitalizacion(Ipress ipress) {
-        Rol rol = new Rol();
-        rol.setNombreRol("ATENCION_HOSPITALIZACION");
-
-        Usuario usuario = new Usuario();
-        usuario.setCorreo("hospital@correo.pe");
-        usuario.setRol(rol);
-        usuario.setIpress(ipress);
-        return usuario;
+    @Test void muestraIndicadoresAunqueNoExistaPrediccion() {
+        when(predicciones.findByIndicadorHospitalario_IdIndicador(1)).thenReturn(Optional.empty());
+        List<DashboardDetalleDTO> r = servicio.obtenerDetalleGeneral("hospital@correo.pe", null);
+        assertEquals(1, r.size()); assertEquals(240, r.get(0).getPacientesCama());
+        assertNull(r.get(0).getIdPrediccion());
+        assertEquals(1, servicio.obtenerResumenGeneral("hospital@correo.pe", null).getTotalRegistros());
+        assertEquals(0, servicio.obtenerResumenGeneral("hospital@correo.pe", null).getTotalPredicciones());
     }
 
-    private PrediccionRiesgo prediccion(
-            int id,
-            Ipress ipress,
-            long idArchivo,
-            int anio,
-            int mes,
-            String servicio,
-            String riesgo
-    ) {
-        ArchivoCargado archivo = new ArchivoCargado();
-        archivo.setIdArchivo(idArchivo);
-        archivo.setNombreArchivo("dataset-" + idArchivo + ".csv");
-        archivo.setIpress(ipress);
-
-        RegistroHospitalario registro = new RegistroHospitalario();
-        registro.setIdRegistro(id);
-        registro.setArchivoCargado(archivo);
-        registro.setAnio(anio);
-        registro.setMes(mes);
-        registro.setServicioHospitalario(servicio);
-
-        IndicadorHospitalario indicador = new IndicadorHospitalario();
-        indicador.setIdIndicador(id);
-        indicador.setRegistroHospitalario(registro);
-
-        PrediccionRiesgo prediccion = new PrediccionRiesgo();
-        prediccion.setIdPrediccion(id);
-        prediccion.setIndicadorHospitalario(indicador);
-        prediccion.setNivelRiesgo(riesgo);
-        prediccion.setProbabilidad(0.8);
-        prediccion.setModeloUtilizado("XGBoost - FastAPI");
-        return prediccion;
+    @Test void adjuntaSoloPrediccionBinariaVigente() {
+        PrediccionRiesgo p = prediccion(indicador, true, "modelo_ipress_binario_v1");
+        when(predicciones.findByIndicadorHospitalario_IdIndicador(1)).thenReturn(Optional.of(p));
+        DashboardDetalleDTO d = servicio.obtenerDetalleGeneral("hospital@correo.pe", null).get(0);
+        assertEquals(.41, d.getProbabilidadAltaPresion());
+        assertEquals(.36, d.getThreshold()); assertTrue(d.getAlertaAltaPresion());
+        assertEquals("2025-07", d.getPeriodoPredicho());
     }
 
-    private Ipress ipress(Long id, String codigo) {
-        Ipress ipress = new Ipress();
-        ipress.setIdIpress(id);
-        ipress.setCodigoRenipress(codigo);
-        return ipress;
+    @Test void omitePrediccionLegacyOInactivaPeroConservaHistorico() {
+        when(predicciones.findByIndicadorHospitalario_IdIndicador(1))
+                .thenReturn(Optional.of(prediccion(indicador, true, "XGBoost - FastAPI")));
+        DashboardDetalleDTO d = servicio.obtenerDetalleGeneral("hospital@correo.pe", null).get(0);
+        assertNull(d.getIdPrediccion()); assertEquals(10, d.getCamasTotales());
+    }
+
+    @Test void alertaSeDeduplicaPorServicioPeriodoYModelo() {
+        PrediccionRiesgo p = prediccion(indicador, true, "modelo_ipress_binario_v1");
+        when(predicciones.findByIndicadorHospitalario_IdIndicador(1)).thenReturn(Optional.of(p));
+        assertEquals(1, servicio.obtenerAlertas("hospital@correo.pe", null).size());
+    }
+
+    private IndicadorHospitalario indicador(Ipress ipress) {
+        ArchivoCargado a = new ArchivoCargado(); a.setIdArchivo(5L); a.setNombreArchivo("D1.csv"); a.setIpress(ipress);
+        RegistroHospitalario r = new RegistroHospitalario(); r.setIdRegistro(1); r.setArchivoCargado(a);
+        r.setAnio(2025); r.setMes(6); r.setServicioHospitalario("MEDICINA");
+        r.setIngresos(20); r.setEgresos(18); r.setEstancias(120); r.setPacientesCama(240);
+        r.setCamasTotales(10); r.setTotalCamasDisponibles(300);
+        IndicadorHospitalario i = new IndicadorHospitalario(); i.setIdIndicador(1); i.setRegistroHospitalario(r);
+        i.setOcupacionEstimada(.8); i.setPresionIngresosCamas(2.0);
+        i.setPromedioEstancia(6.6); i.setRotacionCamas(1.8); return i;
+    }
+    private PrediccionRiesgo prediccion(IndicadorHospitalario i, boolean vigente, String modelo) {
+        PrediccionRiesgo p = new PrediccionRiesgo(); p.setIdPrediccion(7); p.setIndicadorHospitalario(i);
+        p.setProbabilidadAltaPresion(.41); p.setThreshold(.36); p.setAlertaAltaPresion(true);
+        p.setNivelRiesgo("ALTO"); p.setDescripcionRiesgo("Alta presion");
+        p.setPeriodoPredicho("2025-07"); p.setModeloUtilizado(modelo);
+        p.setFechaPrediccion(LocalDateTime.now()); p.setVigente(vigente); return p;
     }
 }

@@ -2,6 +2,8 @@ package pe.edu.upc.tf_tp1_backend.ServiceImplements;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +43,15 @@ class ModeloPredictivoClientServiceTest {
     }
 
     @Test
+    void solicitudNullSeRechazaAntesDeFastApi() {
+        PrediccionBinariaAutomaticaException error = assertThrows(
+                PrediccionBinariaAutomaticaException.class,
+                () -> new ModeloPredictivoClientService(baseUrl).predecirBinario(null));
+        assertEquals(HttpStatus.BAD_REQUEST, error.getStatus());
+        assertEquals("SOLICITUD_INVALIDA", error.getCodigo());
+    }
+
+    @Test
     void enviaRequestAlEndpointBinarioYMapeaRespuesta() {
         AtomicReference<String> cuerpoRecibido = new AtomicReference<>();
         servidor.createContext("/prediccion-binaria", intercambio -> {
@@ -60,6 +71,25 @@ class ModeloPredictivoClientServiceTest {
         assertEquals("2024-07", respuesta.getPeriodoPredicho());
         assertTrue(cuerpoRecibido.get().contains("\"registro_actual\""));
         assertTrue(cuerpoRecibido.get().contains("\"historial_ultimos_meses\""));
+    }
+
+    @Test
+    void serializaJsonRealConCincoHistoricosYSinIpressPublica() throws Exception {
+        AtomicReference<String> cuerpoRecibido = new AtomicReference<>();
+        servidor.createContext("/prediccion-binaria", intercambio -> {
+            cuerpoRecibido.set(new String(intercambio.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            responder(intercambio, 200, respuestaBinaria(0.30, 0.36, false));
+        });
+
+        new ModeloPredictivoClientService(baseUrl).predecirBinario(solicitudConHistorial());
+
+        JsonNode json = new ObjectMapper().readTree(cuerpoRecibido.get());
+        assertTrue(json.has("registro_actual"));
+        assertEquals(5, json.get("historial_ultimos_meses").size());
+        assertEquals("00006207", json.get("registro_actual").get("codigo_ipress").asText());
+        assertEquals("HOSPITALIZACION GENERAL",
+                json.get("registro_actual").get("servicio_hospitalizacion").asText());
+        assertFalse(json.has("co_ipress"));
     }
 
     @Test
@@ -175,6 +205,28 @@ class ModeloPredictivoClientServiceTest {
         solicitud.setRegistroActual(actual);
         solicitud.setHistorialUltimosMeses(List.of());
         return solicitud;
+    }
+
+    private static ModeloPrediccionRequestDTO solicitudConHistorial() {
+        ModeloPrediccionRequestDTO solicitud = solicitud();
+        solicitud.setHistorialUltimosMeses(List.of(
+                datos(2024, 1), datos(2024, 2), datos(2024, 3),
+                datos(2024, 4), datos(2024, 5)
+        ));
+        return solicitud;
+    }
+
+    private static ModeloDatosHospitalariosDTO datos(int anio, int mes) {
+        ModeloDatosHospitalariosDTO d = new ModeloDatosHospitalariosDTO();
+        d.setAnio(anio); d.setMes(mes); d.setUbigeo("150101"); d.setDepartamento("LIMA");
+        d.setProvincia("LIMA"); d.setDistrito("LIMA"); d.setSector("MINSA");
+        d.setCategoriaIpress("II-2"); d.setCodigoIpress("00006207");
+        d.setIdHospitalizacion("241800");
+        d.setServicioHospitalizacion("HOSPITALIZACION GENERAL");
+        d.setTotalIngresos(20.0); d.setTotalEgresos(18.0); d.setTotalEstancias(120.0);
+        d.setTotalPacientesCamas(240.0); d.setTotalCamas(10.0);
+        d.setTotalCamasDisponibles(300.0); d.setTotalFallecidos(1.0);
+        return d;
     }
 
     private static String respuestaBinaria(double probabilidad, double threshold, boolean alerta) {
