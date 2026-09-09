@@ -16,16 +16,6 @@ public class PrediccionRiesgoController {
     @Autowired
     private IPrediccionRiesgoInterfaces pS;
 
-    @PostMapping("/predecir/indicador/{idIndicador}")
-    public void predecirPorIndicador(@PathVariable("idIndicador") Integer idIndicador) {
-        pS.predecirPorIndicador(idIndicador);
-    }
-
-    @PostMapping("/predecir/archivo/{idArchivo}")
-    public void predecirPorArchivo(@PathVariable("idArchivo") Long idArchivo) {
-        pS.predecirPorArchivo(idArchivo);
-    }
-
     @GetMapping
     public List<PrediccionRiesgoListDTO> listar() {
         return pS.list();

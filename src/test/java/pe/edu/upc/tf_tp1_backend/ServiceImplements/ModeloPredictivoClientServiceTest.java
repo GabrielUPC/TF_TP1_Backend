@@ -109,18 +109,6 @@ class ModeloPredictivoClientServiceTest {
     }
 
     @Test
-    void conservaFlujoLegacyEnParalelo() {
-        servidor.createContext("/predict", intercambio ->
-                responder(intercambio, 200, "{\"nivel_riesgo_predicho\":\"medio\"}"));
-        servidor.createContext("/prediccion-binaria", intercambio ->
-                responder(intercambio, 200, respuestaBinaria(0.20, 0.36, false)));
-        ModeloPredictivoClientService cliente = new ModeloPredictivoClientService(baseUrl);
-
-        assertEquals("medio", cliente.predecir(solicitud()).getNivelRiesgoPredicho());
-        assertFalse(cliente.predecirBinario(solicitud()).getAlertaAltaPresion());
-    }
-
-    @Test
     void propagaDatosInsuficientesComo422Controlado() {
         servidor.createContext("/prediccion-binaria", intercambio -> responder(
                 intercambio,

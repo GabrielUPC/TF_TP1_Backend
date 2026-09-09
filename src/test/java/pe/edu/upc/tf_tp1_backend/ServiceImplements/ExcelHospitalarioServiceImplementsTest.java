@@ -206,7 +206,6 @@ class ExcelHospitalarioServiceImplementsTest {
                         "usuario@prueba.pe"
                 );
 
-        verify(prediccionService, never()).predecirPorArchivo(any());
         verify(reporteService, never()).generarPorArchivo(any(), any());
         assertEquals("DATASET_D1", respuesta.getFormatoDetectado());
         assertEquals(1, respuesta.getTotalRegistrosValidos());
@@ -252,7 +251,6 @@ class ExcelHospitalarioServiceImplementsTest {
         verify(consolidador).consolidar(antesDeConsolidar.capture(), any());
         assertEquals(1, antesDeConsolidar.getValue().size());
         assertSame(validoFebrero, antesDeConsolidar.getValue().get(0));
-        verify(prediccionService, never()).predecirPorArchivo(any());
         assertEquals("PROCESADO_PARCIAL", respuesta.getEstadoProcesamiento());
         assertEquals(1, respuesta.getTotalRegistrosValidos());
         assertEquals(1, respuesta.getTotalGruposPendientes());
@@ -294,7 +292,6 @@ class ExcelHospitalarioServiceImplementsTest {
         assertEquals(3, pendientes.getValue().size());
         org.junit.jupiter.api.Assertions.assertTrue(pendientes.getValue().stream()
                 .allMatch(p -> p.getDatosRegistroJson().contains("codigoIpress")));
-        verify(prediccionService, never()).predecirPorArchivo(any());
     }
 
     @Test
@@ -309,7 +306,6 @@ class ExcelHospitalarioServiceImplementsTest {
         assertEquals(2, respuesta.getTotalGruposPendientes());
         verify(registroRepository, never()).saveAll(any());
         verify(indicadorService, never()).calcularPorArchivo(any());
-        verify(prediccionService, never()).predecirPorArchivo(any());
     }
 
     @Test
@@ -320,7 +316,6 @@ class ExcelHospitalarioServiceImplementsTest {
         assertEquals("ERROR", respuesta.getEstadoValidacion());
         assertEquals(0, respuesta.getTotalGruposPendientes());
         assertEquals(0, respuesta.getTotalPrediccionesGeneradas());
-        verify(prediccionService, never()).predecirPorArchivo(any());
     }
 
     private ResumenCargaExcelDTO cargarCsvReal(String columnaDiasCama, String filas) {
