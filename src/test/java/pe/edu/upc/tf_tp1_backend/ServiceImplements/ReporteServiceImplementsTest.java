@@ -27,6 +27,8 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -95,6 +97,28 @@ class ReporteServiceImplementsTest {
 
         assertEquals(404, error.getStatusCode().value());
         verifyNoInteractions(reporteRepository);
+    }
+
+    @Test
+    void generarReporteReutilizaElExistenteParaLaMismaPrediccion() {
+        Ipress ipress = ipress(1L, "00007636");
+        Usuario usuario = usuarioHospitalizacion(ipress);
+        usuario.setNombre("Responsable Hospitalario");
+        Reporte existente = reporte(1, ipress, 5L, 2025, 4, "PEDIATRIA", "MEDIO");
+        PrediccionRiesgo prediccion = existente.getPrediccionRiesgo();
+        when(usuarioRepository.findByCorreo("hospital@correo.pe")).thenReturn(Optional.of(usuario));
+        when(prediccionRepository.findById(1)).thenReturn(Optional.of(prediccion));
+        when(reporteRepository.findByPrediccionRiesgo_IdPrediccion(1)).thenReturn(Optional.of(existente));
+        ReporteDTO solicitud = new ReporteDTO();
+        solicitud.setIdPrediccion(1);
+
+        service.generarReporte("hospital@correo.pe", solicitud);
+        service.generarReporte("hospital@correo.pe", solicitud);
+
+        verify(reporteRepository, times(2)).save(existente);
+        assertEquals(1, existente.getIdReporte());
+        assertEquals(prediccion, existente.getPrediccionRiesgo());
+        assertEquals("Responsable Hospitalario", existente.getUsuarioGenerador());
     }
 
     private Reporte reporte(

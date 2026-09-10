@@ -8,6 +8,7 @@ import pe.edu.upc.tf_tp1_backend.DTOS.*;
 import pe.edu.upc.tf_tp1_backend.Entities.*;
 import pe.edu.upc.tf_tp1_backend.Exceptions.PrediccionBinariaAutomaticaException;
 import pe.edu.upc.tf_tp1_backend.Repositories.*;
+import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IReporteInterfaces;
 
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -29,6 +30,7 @@ public class PrediccionBinariaAutomaticaService {
     private final IPrediccionRiesgoRepository prediccionRepository;
     private final CalidadInferenciaRepository calidadRepository;
     private final ModeloPredictivoClientService modeloClient;
+    private final IReporteInterfaces reporteService;
 
     public PrediccionBinariaAutomaticaService(
             IUsuarioRepository usuarioRepository,
@@ -36,7 +38,8 @@ public class PrediccionBinariaAutomaticaService {
             IIndicadorHospitalarioRepository indicadorRepository,
             IPrediccionRiesgoRepository prediccionRepository,
             CalidadInferenciaRepository calidadRepository,
-            ModeloPredictivoClientService modeloClient
+            ModeloPredictivoClientService modeloClient,
+            IReporteInterfaces reporteService
     ) {
         this.usuarioRepository = usuarioRepository;
         this.registroRepository = registroRepository;
@@ -44,6 +47,7 @@ public class PrediccionBinariaAutomaticaService {
         this.prediccionRepository = prediccionRepository;
         this.calidadRepository = calidadRepository;
         this.modeloClient = modeloClient;
+        this.reporteService = reporteService;
     }
 
     @Transactional
@@ -63,7 +67,10 @@ public class PrediccionBinariaAutomaticaService {
 
         ModeloPrediccionBinariaResponseDTO respuesta = modeloClient.predecirBinario(solicitud);
         validarTrazabilidad(respuesta, ipress.getCodigoRenipress(), servicio, actual);
-        persistir(ventana.get(5), respuesta, ipress.getIdIpress());
+        PrediccionRiesgo prediccion = persistir(ventana.get(5), respuesta, ipress.getIdIpress());
+        ReporteDTO reporte = new ReporteDTO();
+        reporte.setIdPrediccion(prediccion.getIdPrediccion());
+        reporteService.generarReporte(correoAutenticado, reporte);
         return respuesta;
     }
 
@@ -206,7 +213,7 @@ public class PrediccionBinariaAutomaticaService {
         return ESTADOS_VALIDOS.contains(estado);
     }
 
-    private void persistir(
+    private PrediccionRiesgo persistir(
             RegistroHospitalario actual,
             ModeloPrediccionBinariaResponseDTO respuesta,
             Long idIpress
@@ -245,7 +252,7 @@ public class PrediccionBinariaAutomaticaService {
             p.setMotivoNoVigente("Reemplazada por una prediccion binaria mas reciente para la misma clave.");
         });
         if (!duplicadas.isEmpty()) prediccionRepository.saveAll(duplicadas);
-        prediccionRepository.save(entidad);
+        return prediccionRepository.save(entidad);
     }
 
     private ModeloDatosHospitalariosDTO convertir(RegistroHospitalario r) {

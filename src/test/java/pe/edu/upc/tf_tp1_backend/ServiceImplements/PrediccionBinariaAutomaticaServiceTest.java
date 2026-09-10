@@ -8,6 +8,7 @@ import pe.edu.upc.tf_tp1_backend.Entities.*;
 import pe.edu.upc.tf_tp1_backend.Enums.NivelRiesgoPresentacion;
 import pe.edu.upc.tf_tp1_backend.Exceptions.PrediccionBinariaAutomaticaException;
 import pe.edu.upc.tf_tp1_backend.Repositories.*;
+import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IReporteInterfaces;
 
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -24,6 +25,7 @@ class PrediccionBinariaAutomaticaServiceTest {
     private IPrediccionRiesgoRepository predicciones;
     private CalidadInferenciaRepository calidad;
     private ModeloPredictivoClientService modelo;
+    private IReporteInterfaces reportes;
     private PrediccionBinariaAutomaticaService servicio;
     private Ipress ipress;
 
@@ -32,8 +34,9 @@ class PrediccionBinariaAutomaticaServiceTest {
         usuarios = mock(IUsuarioRepository.class); registros = mock(IRegistroHospitalarioRepository.class);
         indicadores = mock(IIndicadorHospitalarioRepository.class); predicciones = mock(IPrediccionRiesgoRepository.class);
         calidad = mock(CalidadInferenciaRepository.class); modelo = mock(ModeloPredictivoClientService.class);
+        reportes = mock(IReporteInterfaces.class);
         servicio = new PrediccionBinariaAutomaticaService(
-                usuarios, registros, indicadores, predicciones, calidad, modelo);
+                usuarios, registros, indicadores, predicciones, calidad, modelo, reportes);
         ipress = new Ipress(10L, "00005617", "IPRESS", "II-2", "150101", "LIMA", "LIMA", "LIMA");
         Rol rol = new Rol(); rol.setNombreRol("ATENCION_HOSPITALIZACION");
         Usuario usuario = new Usuario(); usuario.setCorreo("hospital@prueba.pe"); usuario.setEstado(true);
@@ -47,6 +50,11 @@ class PrediccionBinariaAutomaticaServiceTest {
         when(predicciones.findByIndicadorHospitalario_IdIndicador(anyInt())).thenReturn(Optional.empty());
         when(predicciones.findByIndicadorHospitalario_RegistroHospitalario_ArchivoCargado_Ipress_IdIpress(10L))
                 .thenReturn(List.of());
+        when(predicciones.save(any(PrediccionRiesgo.class))).thenAnswer(invocacion -> {
+            PrediccionRiesgo prediccion = invocacion.getArgument(0);
+            if (prediccion.getIdPrediccion() == null) prediccion.setIdPrediccion(77);
+            return prediccion;
+        });
     }
 
     @Test
@@ -64,6 +72,8 @@ class PrediccionBinariaAutomaticaServiceTest {
         assertEquals("modelo_ipress_binario_v1", guardada.getValue().getModeloUtilizado());
         assertEquals("2025-07", guardada.getValue().getPeriodoPredicho());
         assertTrue(guardada.getValue().getAlertaAltaPresion());
+        verify(reportes).generarReporte(eq("hospital@prueba.pe"), argThat(dto ->
+                dto != null && Objects.equals(dto.getIdPrediccion(), guardada.getValue().getIdPrediccion())));
     }
 
     @Test
