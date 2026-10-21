@@ -40,6 +40,38 @@ class DashboardServiceImplementsTest {
         assertEquals(0, servicio.obtenerResumenGeneral("hospital@correo.pe", null).getTotalPredicciones());
     }
 
+    @Test void normalizaCerosLegacyComoNullCuandoSusDenominadoresSonInvalidos() {
+        RegistroHospitalario registro = indicador.getRegistroHospitalario();
+        registro.setTotalCamasDisponibles(0);
+        registro.setCamasTotales(0);
+        registro.setEgresos(0);
+        indicador.setOcupacionEstimada(0.0);
+        indicador.setPresionIngresosCamas(0.0);
+        indicador.setPromedioEstancia(0.0);
+        when(predicciones.findByIndicadorHospitalario_IdIndicador(1)).thenReturn(Optional.empty());
+
+        DashboardDetalleDTO detalle = servicio.obtenerDetalleGeneral("hospital@correo.pe", null).get(0);
+
+        assertNull(detalle.getOcupacionEstimada());
+        assertNull(detalle.getPresionIngresosCamas());
+        assertNull(detalle.getPromedioEstancia());
+        assertNull(servicio.obtenerResumenGeneral("hospital@correo.pe", null).getPromedioOcupacionEstimada());
+        assertNull(servicio.obtenerResumenGeneral("hospital@correo.pe", null).getPromedioPresionIngresosCamas());
+    }
+
+    @Test void conservaCerosComoValoresValidosCuandoSusDenominadoresSonPositivos() {
+        indicador.setOcupacionEstimada(0.0);
+        indicador.setPresionIngresosCamas(0.0);
+        indicador.setPromedioEstancia(0.0);
+        when(predicciones.findByIndicadorHospitalario_IdIndicador(1)).thenReturn(Optional.empty());
+
+        DashboardDetalleDTO detalle = servicio.obtenerDetalleGeneral("hospital@correo.pe", null).get(0);
+
+        assertEquals(0.0, detalle.getOcupacionEstimada());
+        assertEquals(0.0, detalle.getPresionIngresosCamas());
+        assertEquals(0.0, detalle.getPromedioEstancia());
+    }
+
     @Test void adjuntaSoloPrediccionBinariaVigente() {
         PrediccionRiesgo p = prediccion(indicador, true, "modelo_ipress_binario_v1");
         when(predicciones.findByIndicadorHospitalario_IdIndicador(1)).thenReturn(Optional.of(p));

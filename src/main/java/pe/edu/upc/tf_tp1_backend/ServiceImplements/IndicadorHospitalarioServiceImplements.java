@@ -123,22 +123,22 @@ public class IndicadorHospitalarioServiceImplements implements IIndicadorHospita
         // Camas físicas y días-cama mensuales tienen unidades diferentes.
         Number diasCamaDisponibles = obtenerDiasCamaDisponibles(registro);
 
-        Double ocupacionEstimada = dividir(
+        Double ocupacionEstimada = dividirNullable(
                 registro.getPacientesCama(),
                 diasCamaDisponibles
         );
 
-        Double presionIngresosCamas = dividir(
+        Double presionIngresosCamas = dividirNullable(
                 registro.getIngresos(),
                 registro.getCamasTotales()
         );
 
-        Double promedioEstancia = dividir(
+        Double promedioEstancia = dividirNullable(
                 registro.getEstancias(),
                 registro.getEgresos()
         );
 
-        Double rotacionCamas = dividir(
+        Double rotacionCamas = dividirConCeroDefensivo(
                 registro.getEgresos(),
                 registro.getCamasTotales()
         );
@@ -167,17 +167,17 @@ public class IndicadorHospitalarioServiceImplements implements IIndicadorHospita
         }
     }
 
-    private Double dividir(Integer numerador, Number denominador) {
-
-        // Conserva el cero defensivo legado; no es una decisión predictiva.
+    private Double dividirNullable(Integer numerador, Number denominador) {
         if (numerador == null || numerador < 0 || denominador == null
                 || !Double.isFinite(denominador.doubleValue()) || denominador.doubleValue() <= 0) {
-            return 0.0;
+            return null;
         }
+        return redondear(numerador.doubleValue() / denominador.doubleValue());
+    }
 
-        Double resultado = numerador.doubleValue() / denominador.doubleValue();
-
-        return redondear(resultado);
+    private Double dividirConCeroDefensivo(Integer numerador, Number denominador) {
+        Double resultado = dividirNullable(numerador, denominador);
+        return resultado == null ? 0.0 : resultado;
     }
 
     private Double redondear(Double valor) {

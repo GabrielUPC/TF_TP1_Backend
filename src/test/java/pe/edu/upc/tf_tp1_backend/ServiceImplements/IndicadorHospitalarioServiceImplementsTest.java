@@ -17,6 +17,7 @@ import pe.edu.upc.tf_tp1_backend.Repositories.IRegistroHospitalarioRepository;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -89,8 +90,8 @@ class IndicadorHospitalarioServiceImplementsTest {
 
     @ParameterizedTest
     @NullSource
-    @ValueSource(ints = {0, -1})
-    void denominadoresInvalidosSonSeguros(Integer denominador) {
+    @ValueSource(ints = {-1})
+    void denominadoresNulosONegativosProducenIndicadoresNoCalculables(Integer denominador) {
         RegistroHospitalario registro = crearRegistro(4);
         registro.setPacientesCama(240);
         registro.setIngresos(10);
@@ -99,10 +100,10 @@ class IndicadorHospitalarioServiceImplementsTest {
         registro.setCamasTotales(denominador);
         registro.setEgresos(denominador);
         IndicadorHospitalario indicador = calcularIndicador(registro);
-        assertEquals(0.0, indicador.getOcupacionEstimada());
-        assertEquals(0.0, indicador.getPresionIngresosCamas());
+        assertNull(indicador.getOcupacionEstimada());
+        assertNull(indicador.getPresionIngresosCamas());
         assertEquals(0.0, indicador.getRotacionCamas());
-        assertEquals(0.0, indicador.getPromedioEstancia());
+        assertNull(indicador.getPromedioEstancia());
     }
 
     @Test
@@ -111,7 +112,52 @@ class IndicadorHospitalarioServiceImplementsTest {
         registro.setTotalCamasDisponibles(0);
         registro.setCamasDisponiblesHabilitadas(10);
         registro.setPacientesCama(240);
+        assertNull(calcularIndicador(registro).getOcupacionEstimada());
+    }
+
+    @Test
+    void pacientesDiaCeroConDiasCamaValidosProduceOcupacionCeroValida() {
+        RegistroHospitalario registro = crearRegistro(6);
+        registro.setPacientesCama(0);
+        registro.setTotalCamasDisponibles(300);
+
         assertEquals(0.0, calcularIndicador(registro).getOcupacionEstimada());
+    }
+
+    @Test
+    void camasTotalesCeroProducePresionNoCalculable() {
+        RegistroHospitalario registro = crearRegistro(7);
+        registro.setIngresos(10);
+        registro.setCamasTotales(0);
+
+        assertNull(calcularIndicador(registro).getPresionIngresosCamas());
+    }
+
+    @Test
+    void ingresosCeroConCamasValidasProducePresionCeroValida() {
+        RegistroHospitalario registro = crearRegistro(8);
+        registro.setIngresos(0);
+        registro.setCamasTotales(10);
+
+        assertEquals(0.0, calcularIndicador(registro).getPresionIngresosCamas());
+    }
+
+    @Test
+    void egresosCeroProducePromedioEstanciaNoCalculable() {
+        RegistroHospitalario registro = crearRegistro(9);
+        registro.setEstancias(25);
+        registro.setEgresos(0);
+
+        assertNull(calcularIndicador(registro).getPromedioEstancia());
+    }
+
+    @Test
+    void estanciasCeroConEgresosValidosProducePromedioEstanciaCeroValido() {
+        RegistroHospitalario registro = crearRegistro(10);
+        registro.setEstancias(0);
+        registro.setEgresos(5);
+
+        assertEquals(0.0, calcularIndicador(registro).getPromedioEstancia());
     }
 
     private RegistroHospitalario crearRegistro(Integer idRegistro) {

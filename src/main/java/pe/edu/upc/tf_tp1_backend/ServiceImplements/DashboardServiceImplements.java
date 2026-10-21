@@ -109,9 +109,10 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         d.setCamasTotales(r.getCamasTotales());
         d.setCamasDisponiblesHabilitadas(r.getCamasDisponiblesHabilitadas());
         d.setTotalCamasDisponibles(r.getTotalCamasDisponibles());
-        d.setOcupacionEstimada(i.getOcupacionEstimada());
-        d.setPresionIngresosCamas(i.getPresionIngresosCamas());
-        d.setPromedioEstancia(i.getPromedioEstancia()); d.setRotacionCamas(i.getRotacionCamas());
+        d.setOcupacionEstimada(diasCamaValidos(r) ? i.getOcupacionEstimada() : null);
+        d.setPresionIngresosCamas(positivo(r.getCamasTotales()) ? i.getPresionIngresosCamas() : null);
+        d.setPromedioEstancia(positivo(r.getEgresos()) ? i.getPromedioEstancia() : null);
+        d.setRotacionCamas(i.getRotacionCamas());
         prediccionRepository.findByIndicadorHospitalario_IdIndicador(i.getIdIndicador())
                 .filter(p -> Boolean.TRUE.equals(p.getVigente()) && MODELO.equals(p.getModeloUtilizado()))
                 .ifPresent(p -> {
@@ -157,7 +158,17 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         return l.stream().mapToInt(f).sum();
     }
     private int cero(Integer v) { return v == null ? 0 : v; }
+    private boolean positivo(Integer valor) { return valor != null && valor > 0; }
+    private boolean diasCamaValidos(RegistroHospitalario registro) {
+        if (registro.getTotalCamasDisponibles() != null) {
+            return registro.getTotalCamasDisponibles() > 0;
+        }
+        return positivo(registro.getCamasDisponiblesHabilitadas())
+                && registro.getAnio() != null && registro.getMes() != null
+                && registro.getMes() >= 1 && registro.getMes() <= 12;
+    }
     private Double promedio(List<Double> valores) {
-        return valores.stream().filter(Objects::nonNull).mapToDouble(Double::doubleValue).average().orElse(0.0);
+        return valores.stream().filter(Objects::nonNull).mapToDouble(Double::doubleValue)
+                .average().stream().boxed().findFirst().orElse(null);
     }
 }

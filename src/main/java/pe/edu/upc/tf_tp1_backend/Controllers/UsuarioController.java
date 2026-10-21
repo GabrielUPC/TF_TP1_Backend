@@ -16,6 +16,7 @@ import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IRolInterfaces;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IUsuarioInterfaces;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
@@ -24,6 +25,10 @@ import java.util.stream.Collectors;
 public class UsuarioController {
 
     private static final String ROL_ADMINISTRADOR = "ADMINISTRADOR";
+    private static final Set<String> ROLES_QUE_REQUIEREN_IPRESS = Set.of(
+            "ADMISION_REGISTROS",
+            "ATENCION_HOSPITALIZACION"
+    );
 
     @Autowired
     private IUsuarioInterfaces usuarioService;
@@ -79,6 +84,7 @@ public class UsuarioController {
         usuario.setEstado(dto.getEstado() != null ? dto.getEstado() : true);
 
         Rol rol = rolService.listId(dto.getIdRol());
+        validarIpressRequerida(rol, dto.getIdIpress());
         usuario.setRol(rol);
 
         if (dto.getIdIpress() != null) {
@@ -138,6 +144,7 @@ public class UsuarioController {
         }
 
         Rol rol = rolService.listId(dto.getIdRol());
+        validarIpressRequerida(rol, dto.getIdIpress());
         usuario.setRol(rol);
 
         if (dto.getIdIpress() != null) {
@@ -173,6 +180,19 @@ public class UsuarioController {
         Usuario usuario = usuarioService.listId(id);
         usuario.setEstado(true);
         usuarioService.modificar(usuario);
+    }
+
+    private void validarIpressRequerida(Rol rol, Long idIpress) {
+        if (rol != null
+                && rol.getNombreRol() != null
+                && ROLES_QUE_REQUIEREN_IPRESS.stream().anyMatch(
+                        nombre -> nombre.equalsIgnoreCase(rol.getNombreRol()))
+                && idIpress == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Seleccione una IPRESS para el rol operativo asignado"
+            );
+        }
     }
 
     private Usuario obtenerAdministradorAutenticado(Authentication authentication) {
