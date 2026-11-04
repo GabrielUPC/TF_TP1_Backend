@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
@@ -21,7 +22,9 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -97,6 +100,99 @@ class UsuarioControllerTest {
         controller.registrar(dto, authentication);
 
         verify(usuarioService).add(any(Usuario.class));
+    }
+
+    @Test
+    void rechazaCorreoExistenteAunquePertenezcaAOtraIpress() {
+        UsuarioDTO dto = solicitud(2L, 2L);
+        Usuario existente = new Usuario();
+        existente.setIdUsuario(10L);
+        Ipress otraIpress = new Ipress();
+        otraIpress.setIdIpress(1L);
+        existente.setIpress(otraIpress);
+        when(usuarioService.buscarPorCorreo(dto.getCorreo())).thenReturn(Optional.of(existente));
+
+        RuntimeException error = assertThrows(RuntimeException.class,
+                () -> controller.registrar(dto, authentication));
+
+        assertEquals("El correo institucional ya está registrado", error.getMessage());
+        verify(usuarioService, never()).add(any());
+    }
+
+    @Test
+    void permiteCorreoNuevoEnOtraIpress() {
+        UsuarioDTO dto = solicitud(2L, 2L);
+        when(rolService.listId(2L)).thenReturn(rol("ADMISION_REGISTROS"));
+        when(ipressService.listId(2L)).thenReturn(new Ipress());
+
+        controller.registrar(dto, authentication);
+
+        verify(usuarioService).add(any(Usuario.class));
+    }
+
+    @Test
+    void traduceColisionConcurrenteSoloSiElCorreoQuedoOcupado() {
+        UsuarioDTO dto = solicitud(2L, 2L);
+        Usuario concurrente = new Usuario();
+        concurrente.setIdUsuario(11L);
+        when(usuarioService.buscarPorCorreo(dto.getCorreo()))
+                .thenReturn(Optional.empty(), Optional.of(concurrente));
+        when(rolService.listId(2L)).thenReturn(rol("ADMISION_REGISTROS"));
+        when(ipressService.listId(2L)).thenReturn(new Ipress());
+        doThrow(new DataIntegrityViolationException("unique correo"))
+                .when(usuarioService).add(any());
+
+        RuntimeException error = assertThrows(RuntimeException.class,
+                () -> controller.registrar(dto, authentication));
+
+        assertEquals("El correo institucional ya está registrado", error.getMessage());
+    }
+
+    @Test
+    void noDisfrazaOtraViolacionDeIntegridadComoCorreoDuplicado() {
+        UsuarioDTO dto = solicitud(1L, null);
+        when(rolService.listId(1L)).thenReturn(rol("ADMINISTRADOR"));
+        DataIntegrityViolationException causa = new DataIntegrityViolationException("otra restriccion");
+        doThrow(causa).when(usuarioService).add(any());
+
+        DataIntegrityViolationException error = assertThrows(DataIntegrityViolationException.class,
+                () -> controller.registrar(dto, authentication));
+
+        assertTrue(error == causa);
+    }
+
+    @Test
+    void permiteEditarConElMismoCorreo() {
+        UsuarioDTO dto = solicitud(2L, 1L);
+        dto.setIdUsuario(10L);
+        Usuario existente = new Usuario();
+        existente.setIdUsuario(10L);
+        when(usuarioService.listId(10L)).thenReturn(existente);
+        when(usuarioService.buscarPorCorreo(dto.getCorreo())).thenReturn(Optional.of(existente));
+        when(rolService.listId(2L)).thenReturn(rol("ADMISION_REGISTROS"));
+        when(ipressService.listId(1L)).thenReturn(new Ipress());
+
+        controller.modificar(dto, authentication);
+
+        verify(usuarioService).modificar(existente);
+    }
+
+    @Test
+    void rechazaEditarConCorreoDeOtroUsuario() {
+        UsuarioDTO dto = solicitud(2L, 2L);
+        dto.setIdUsuario(10L);
+        Usuario existente = new Usuario();
+        existente.setIdUsuario(10L);
+        Usuario otro = new Usuario();
+        otro.setIdUsuario(11L);
+        when(usuarioService.listId(10L)).thenReturn(existente);
+        when(usuarioService.buscarPorCorreo(dto.getCorreo())).thenReturn(Optional.of(otro));
+
+        RuntimeException error = assertThrows(RuntimeException.class,
+                () -> controller.modificar(dto, authentication));
+
+        assertEquals("El correo institucional ya está registrado", error.getMessage());
+        verify(usuarioService, never()).modificar(any());
     }
 
     private UsuarioDTO solicitud(Long idRol, Long idIpress) {

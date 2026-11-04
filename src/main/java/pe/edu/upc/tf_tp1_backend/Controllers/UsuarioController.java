@@ -1,7 +1,9 @@
 package pe.edu.upc.tf_tp1_backend.Controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +18,7 @@ import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IRolInterfaces;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IUsuarioInterfaces;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -25,6 +28,7 @@ import java.util.stream.Collectors;
 public class UsuarioController {
 
     private static final String ROL_ADMINISTRADOR = "ADMINISTRADOR";
+    private static final String CORREO_DUPLICADO = "El correo institucional ya está registrado";
     private static final Set<String> ROLES_QUE_REQUIEREN_IPRESS = Set.of(
             "ADMISION_REGISTROS",
             "ATENCION_HOSPITALIZACION"
@@ -72,6 +76,8 @@ public class UsuarioController {
     public void registrar(@RequestBody UsuarioDTO dto, Authentication authentication) {
         obtenerAdministradorAutenticado(authentication);
 
+        validarCorreoDisponible(dto.getCorreo(), null);
+
         Usuario usuario = new Usuario();
 
         usuario.setIdUsuario(dto.getIdUsuario());
@@ -94,7 +100,11 @@ public class UsuarioController {
             usuario.setIpress(null);
         }
 
-        usuarioService.add(usuario);
+        try {
+            usuarioService.add(usuario);
+        } catch (DataIntegrityViolationException error) {
+            manejarPosibleCorreoDuplicado(dto.getCorreo(), null, error);
+        }
     }
 
     @GetMapping("/{id}")
@@ -134,6 +144,8 @@ public class UsuarioController {
 
         Usuario usuario = usuarioService.listId(dto.getIdUsuario());
 
+        validarCorreoDisponible(dto.getCorreo(), usuario.getIdUsuario());
+
         usuario.setNombre(dto.getNombre());
         usuario.setCorreo(dto.getCorreo());
         usuario.setEstado(dto.getEstado());
@@ -154,7 +166,36 @@ public class UsuarioController {
             usuario.setIpress(null);
         }
 
-        usuarioService.modificar(usuario);
+        try {
+            usuarioService.modificar(usuario);
+        } catch (DataIntegrityViolationException error) {
+            manejarPosibleCorreoDuplicado(dto.getCorreo(), usuario.getIdUsuario(), error);
+        }
+    }
+
+    @ExceptionHandler(CorreoDuplicadoException.class)
+    public ResponseEntity<Map<String, String>> manejarCorreoDuplicado(CorreoDuplicadoException error) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("detail", error.getMessage()));
+    }
+
+    private void validarCorreoDisponible(String correo, Long idUsuario) {
+        if (correo != null && usuarioService.buscarPorCorreo(correo)
+                .filter(existente -> !existente.getIdUsuario().equals(idUsuario))
+                .isPresent()) {
+            throw new CorreoDuplicadoException();
+        }
+    }
+
+    private void manejarPosibleCorreoDuplicado(String correo, Long idUsuario,
+                                               DataIntegrityViolationException error) {
+        validarCorreoDisponible(correo, idUsuario);
+        throw error;
+    }
+
+    private static class CorreoDuplicadoException extends RuntimeException {
+        CorreoDuplicadoException() {
+            super(CORREO_DUPLICADO);
+        }
     }
     @PutMapping("/{id}/inactivar")
     public void inactivar(@PathVariable("id") Long id, Authentication authentication) {

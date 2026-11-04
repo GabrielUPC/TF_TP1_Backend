@@ -22,7 +22,7 @@ public class UsuarioServiceImplements implements IUsuarioInterfaces {
 
     @Override
     public void add(Usuario usuario) {
-        usuarioRepository.save(usuario);
+        usuarioRepository.saveAndFlush(usuario);
     }
 
     @Override
@@ -32,7 +32,7 @@ public class UsuarioServiceImplements implements IUsuarioInterfaces {
     }
     @Override
     public void modificar(Usuario usuario) {
-        usuarioRepository.save(usuario);
+        usuarioRepository.saveAndFlush(usuario);
     }
     
     @Override
