@@ -7,6 +7,7 @@ public class ArchivoProcesadoDTO {
     private Long idArchivo;
     private String nombreArchivo;
     private LocalDateTime fechaCarga;
+    private String fechaCargaUtc;
     private String formatoDetectado;
     private Integer anioMinimo;
     private Integer anioMaximo;
@@ -35,6 +36,14 @@ public class ArchivoProcesadoDTO {
 
     public void setFechaCarga(LocalDateTime fechaCarga) {
         this.fechaCarga = fechaCarga;
+    }
+
+    public String getFechaCargaUtc() {
+        return fechaCargaUtc;
+    }
+
+    public void setFechaCargaUtc(String fechaCargaUtc) {
+        this.fechaCargaUtc = fechaCargaUtc;
     }
 
     public String getFormatoDetectado() {

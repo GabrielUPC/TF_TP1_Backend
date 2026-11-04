@@ -73,6 +73,8 @@ public class ArchivoCargadoController {
         dto.setNombreArchivo(archivo.getNombreArchivo());
         dto.setFormato(archivo.getFormato());
         dto.setFechaCarga(archivo.getFechaCarga());
+        dto.setFechaCargaUtc(archivo.getFechaCargaUtc() == null
+                ? null : archivo.getFechaCargaUtc().toString());
         dto.setEstadoValidacion(archivo.getEstadoValidacion());
         dto.setEstadoProcesamiento(archivo.getEstadoProcesamiento());
 
@@ -94,6 +96,8 @@ public class ArchivoCargadoController {
         dto.setNombreArchivo(archivo.getNombreArchivo());
         dto.setFormato(archivo.getFormato());
         dto.setFechaCarga(archivo.getFechaCarga());
+        dto.setFechaCargaUtc(archivo.getFechaCargaUtc() == null
+                ? null : archivo.getFechaCargaUtc().toString());
         dto.setEstadoValidacion(archivo.getEstadoValidacion());
         dto.setEstadoProcesamiento(archivo.getEstadoProcesamiento());
 

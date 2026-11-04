@@ -8,6 +8,7 @@ public class ArchivoCargadoListDTO {
     private String nombreArchivo;
     private String formato;
     private LocalDateTime fechaCarga;
+    private String fechaCargaUtc;
     private String estadoValidacion;
     private String estadoProcesamiento;
     private String nombreUsuario;
@@ -43,6 +44,14 @@ public class ArchivoCargadoListDTO {
 
     public void setFechaCarga(LocalDateTime fechaCarga) {
         this.fechaCarga = fechaCarga;
+    }
+
+    public String getFechaCargaUtc() {
+        return fechaCargaUtc;
+    }
+
+    public void setFechaCargaUtc(String fechaCargaUtc) {
+        this.fechaCargaUtc = fechaCargaUtc;
     }
 
     public String getEstadoValidacion() {

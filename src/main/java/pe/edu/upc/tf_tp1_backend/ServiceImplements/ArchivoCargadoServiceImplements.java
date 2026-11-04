@@ -156,6 +156,8 @@ public class ArchivoCargadoServiceImplements implements IArchivoCargadoInterface
         dto.setIdArchivo(archivo.getIdArchivo());
         dto.setNombreArchivo(archivo.getNombreArchivo());
         dto.setFechaCarga(archivo.getFechaCarga());
+        dto.setFechaCargaUtc(archivo.getFechaCargaUtc() == null
+                ? null : archivo.getFechaCargaUtc().toString());
         dto.setFormatoDetectado(archivo.getFormato());
         dto.setRegistrosValidos(registros.size());
         dto.setPrediccionesGeneradas(

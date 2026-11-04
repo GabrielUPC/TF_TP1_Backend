@@ -148,6 +148,13 @@ class ExcelHospitalarioServiceImplementsTest {
                         "usuario@prueba.pe"
                 );
 
+        ArgumentCaptor<ArchivoCargado> archivoGuardado = ArgumentCaptor.forClass(ArchivoCargado.class);
+        verify(archivoRepository, org.mockito.Mockito.atLeastOnce()).save(archivoGuardado.capture());
+        ArchivoCargado carga = archivoGuardado.getAllValues().get(0);
+        org.junit.jupiter.api.Assertions.assertNotNull(carga.getFechaCargaUtc());
+        assertEquals(java.time.LocalDateTime.ofInstant(
+                carga.getFechaCargaUtc(), java.time.ZoneOffset.UTC), carga.getFechaCarga());
+
         assertEquals("NO_RECONOCIDO", respuesta.getFormatoDetectado());
         assertEquals(List.of("nombre", "valor"), respuesta.getColumnasEncontradas());
         assertEquals(0, respuesta.getTotalPrediccionesGeneradas());

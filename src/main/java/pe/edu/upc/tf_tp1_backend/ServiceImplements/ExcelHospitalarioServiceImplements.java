@@ -48,7 +48,9 @@ import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IPrediccionRiesgoInterfaces;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -314,7 +316,9 @@ public class ExcelHospitalarioServiceImplements
         ArchivoCargado entidad = new ArchivoCargado();
         entidad.setNombreArchivo(archivo.getOriginalFilename());
         entidad.setFormato(extension(archivo.getOriginalFilename()));
-        entidad.setFechaCarga(LocalDateTime.now());
+        Instant fechaCargaUtc = Instant.now();
+        entidad.setFechaCargaUtc(fechaCargaUtc);
+        entidad.setFechaCarga(LocalDateTime.ofInstant(fechaCargaUtc, ZoneOffset.UTC));
         entidad.setEstadoValidacion("PENDIENTE");
         entidad.setEstadoProcesamiento("PENDIENTE");
         entidad.setUsuario(usuario);

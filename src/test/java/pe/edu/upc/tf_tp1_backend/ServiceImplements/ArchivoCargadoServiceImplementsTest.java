@@ -27,6 +27,32 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ArchivoCargadoServiceImplementsTest {
 
+    @Test
+    void historialConsultaSoloLaIpressAutenticadaSinAlterarFechaHistorica() {
+        Ipress ipress = new Ipress();
+        ipress.setIdIpress(9L);
+        Rol rol = new Rol();
+        rol.setNombreRol("ADMISION_REGISTROS");
+        Usuario usuario = new Usuario();
+        usuario.setRol(rol);
+        usuario.setIpress(ipress);
+        ArchivoCargado historico = archivo(5L, "DATASET_D1", "PROCESADO");
+        historico.setIdArchivo(38L);
+        historico.setFechaCarga(LocalDateTime.of(2026, 11, 1, 19, 37, 7));
+
+        when(usuarioRepository.findByCorreo("admision@correo.pe"))
+                .thenReturn(Optional.of(usuario));
+        when(archivoRepository.findByIpress_IdIpress(9L))
+                .thenReturn(List.of(historico));
+
+        List<ArchivoCargado> resultado = service.listarPorUsuarioAutenticado("admision@correo.pe");
+
+        assertEquals(List.of(historico), resultado);
+        assertEquals(LocalDateTime.of(2026, 11, 1, 19, 37, 7), resultado.get(0).getFechaCarga());
+        org.junit.jupiter.api.Assertions.assertNull(resultado.get(0).getFechaCargaUtc());
+        org.mockito.Mockito.verify(archivoRepository).findByIpress_IdIpress(9L);
+    }
+
     @Mock
     private IArchivoCargadoRepository archivoRepository;
 

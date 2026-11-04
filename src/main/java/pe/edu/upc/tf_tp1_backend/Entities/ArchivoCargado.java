@@ -1,7 +1,10 @@
 package pe.edu.upc.tf_tp1_backend.Entities;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.io.Serializable;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Entity
@@ -21,6 +24,10 @@ public class ArchivoCargado implements Serializable {
 
     @Column(name = "fecha_carga", nullable = false)
     private LocalDateTime fechaCarga;
+
+    @JdbcTypeCode(SqlTypes.TIMESTAMP_WITH_TIMEZONE)
+    @Column(name = "fecha_carga_utc", columnDefinition = "timestamp with time zone")
+    private Instant fechaCargaUtc;
 
     @Column(name = "estado_validacion", nullable = false, length = 50)
     private String estadoValidacion;
@@ -77,6 +84,14 @@ public class ArchivoCargado implements Serializable {
 
     public LocalDateTime getFechaCarga() {
         return fechaCarga;
+    }
+
+    public Instant getFechaCargaUtc() {
+        return fechaCargaUtc;
+    }
+
+    public void setFechaCargaUtc(Instant fechaCargaUtc) {
+        this.fechaCargaUtc = fechaCargaUtc;
     }
 
     public void setFechaCarga(LocalDateTime fechaCarga) {
