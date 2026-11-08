@@ -257,9 +257,6 @@ public class ExcelHospitalarioServiceImplements
             return agregarPendientes(sinValidos, tratamiento);
         }
 
-        completarDatosIpress(ipress, consolidados.get(0));
-        ipressRepository.save(ipress);
-
         List<RegistroHospitalario> registros = consolidados.stream()
                 .map(registro -> convertirEntidad(registro, archivoCargado))
                 .toList();
@@ -451,34 +448,6 @@ public class ExcelHospitalarioServiceImplements
         registro.setTotalCamasDisponibles(origen.getTotalCamasDisponibles());
         registro.setFallecidos(origen.getFallecidos());
         return registro;
-    }
-
-    private void completarDatosIpress(
-            Ipress ipress,
-            RegistroHospitalarioImportado origen
-    ) {
-        if (!estaVacio(origen.getNombreIpress())) {
-            ipress.setNombreIpress(origen.getNombreIpress());
-        }
-        if (!estaVacio(origen.getCategoriaIpress())) {
-            ipress.setCategoriaIpress(origen.getCategoriaIpress());
-        }
-        if (!estaVacio(origen.getCodigoUbigeo())) {
-            ipress.setCodigoUbigeo(origen.getCodigoUbigeo());
-        }
-        if (!estaVacio(origen.getDepartamento())) {
-            ipress.setDepartamento(origen.getDepartamento());
-        }
-        if (!estaVacio(origen.getProvincia())) {
-            ipress.setProvincia(origen.getProvincia());
-        }
-        if (!estaVacio(origen.getDistrito())) {
-            ipress.setDistrito(origen.getDistrito());
-        }
-    }
-
-    private boolean estaVacio(String valor) {
-        return valor == null || valor.isBlank();
     }
 
     private Usuario obtenerUsuarioAutenticado(String correoUsuario) {

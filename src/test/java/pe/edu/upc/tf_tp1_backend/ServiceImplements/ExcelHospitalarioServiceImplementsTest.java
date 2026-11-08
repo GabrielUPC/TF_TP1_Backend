@@ -28,6 +28,7 @@ import pe.edu.upc.tf_tp1_backend.Repositories.IHallazgoCalidadDatosRepository;
 import pe.edu.upc.tf_tp1_backend.DTOS.ResumenCargaExcelDTO;
 import pe.edu.upc.tf_tp1_backend.Entities.ArchivoCargado;
 import pe.edu.upc.tf_tp1_backend.Entities.Ipress;
+import pe.edu.upc.tf_tp1_backend.Entities.RegistroHospitalario;
 import pe.edu.upc.tf_tp1_backend.Entities.Rol;
 import pe.edu.upc.tf_tp1_backend.Entities.Usuario;
 import pe.edu.upc.tf_tp1_backend.Repositories.IArchivoCargadoRepository;
@@ -48,6 +49,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class ExcelHospitalarioServiceImplementsTest {
@@ -325,22 +327,120 @@ class ExcelHospitalarioServiceImplementsTest {
         assertEquals(0, respuesta.getTotalPrediccionesGeneradas());
     }
 
+    @Test
+    void cargasD1ConRazonesSocialesDistintasNoCambianMaestroNiHistorial() {
+        ipress.setNombreIpress("NAC. DANIEL A. CARRION");
+        ArchivoCargado historico = new ArchivoCargado();
+        historico.setIdArchivo(35L);
+        historico.setIpress(ipress);
+        String fila = "2026,1,00007636,241500,MEDICINA,5,4,20,20,10,310,0\n";
+
+        ResumenCargaExcelDTO primera = cargarCsvReal(
+                "dias_cama_disponible", fila, "IPRESS QA SINTETICA", "I-1", "CUSCO");
+        ResumenCargaExcelDTO segunda = cargarCsvReal(
+                "dias_cama_disponible", fila, "OTRO NOMBRE DEL CSV", "II-2", "AREQUIPA");
+
+        assertEquals("PROCESADO", primera.getEstadoProcesamiento());
+        assertEquals("PROCESADO", segunda.getEstadoProcesamiento());
+        assertEquals(1, primera.getTotalRegistrosValidos());
+        assertEquals(1, segunda.getTotalRegistrosValidos());
+        assertEquals("NAC. DANIEL A. CARRION", ipress.getNombreIpress());
+        assertEquals("NAC. DANIEL A. CARRION", historico.getIpress().getNombreIpress());
+        assertEquals("III-1", ipress.getCategoriaIpress());
+        assertEquals("150101", ipress.getCodigoUbigeo());
+        assertEquals("LIMA", ipress.getDepartamento());
+        assertEquals("LIMA", ipress.getProvincia());
+        assertEquals("LIMA", ipress.getDistrito());
+        verify(ipressRepository, never()).save(any(Ipress.class));
+        verify(registroRepository, times(2)).saveAll(any());
+        verify(indicadorService, times(2)).calcularPorArchivo(12L);
+    }
+
+    @Test
+    void d1InvalidoNoModificaMaestroNiGuardaRegistros() {
+        ipress.setNombreIpress("NAC. DANIEL A. CARRION");
+        ResumenCargaExcelDTO respuesta = cargarCsvReal(
+                "dias_cama_disponible",
+                "2026,13,00007636,241500,MEDICINA,5,4,20,20,10,310,0\n",
+                "IPRESS QA SINTETICA", "I-1", "CUSCO");
+
+        assertEquals("ERROR", respuesta.getEstadoValidacion());
+        assertEquals("NAC. DANIEL A. CARRION", ipress.getNombreIpress());
+        assertEquals("III-1", ipress.getCategoriaIpress());
+        verify(ipressRepository, never()).save(any(Ipress.class));
+        verify(registroRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void d1OmiteOtraIpressYNoModificaNingunCatalogo() {
+        ipress.setNombreIpress("NAC. DANIEL A. CARRION");
+        Ipress otra = new Ipress();
+        otra.setCodigoRenipress("00009999");
+        otra.setNombreIpress("OTRA IPRESS OFICIAL");
+        ResumenCargaExcelDTO respuesta = cargarCsvReal(
+                "dias_cama_disponible", """
+                2026,1,00007636,241500,MEDICINA,5,4,20,20,10,310,0
+                2026,1,00009999,241600,CIRUGIA,7,6,25,22,11,341,0
+                """, "NOMBRE AJENO", "I-1", "CUSCO");
+
+        assertEquals(1, respuesta.getTotalRegistrosValidos());
+        assertEquals("NAC. DANIEL A. CARRION", ipress.getNombreIpress());
+        assertEquals("OTRA IPRESS OFICIAL", otra.getNombreIpress());
+        ArgumentCaptor<List<RegistroHospitalario>> guardados = ArgumentCaptor.forClass(List.class);
+        verify(registroRepository).saveAll(guardados.capture());
+        assertEquals(1, guardados.getValue().size());
+        assertEquals("MEDICINA", guardados.getValue().get(0).getServicioHospitalario());
+        assertSame(ipress, guardados.getValue().get(0).getArchivoCargado().getIpress());
+        verify(ipressRepository, never()).save(any(Ipress.class));
+    }
+
+    @Test
+    void formatoInternoProcesaSinModificarMaestro() {
+        ipress.setNombreIpress("NAC. DANIEL A. CARRION");
+        usarEtapasReales();
+        String csv = String.join(",", DetectorFormatoHospitalario.COLUMNAS_FORMATO_INTERNO)
+                + "\n00007636,2026,1,MEDICINA,5,4,20,20,10,8\n";
+        MockMultipartFile archivo = new MockMultipartFile("archivo", "interno.csv", "text/csv",
+                csv.getBytes(StandardCharsets.UTF_8));
+
+        ResumenCargaExcelDTO respuesta = service.cargarValidarYProcesarExcel(
+                archivo, 7L, 9L, "usuario@prueba.pe");
+
+        assertEquals("FORMATO_INTERNO", respuesta.getFormatoDetectado());
+        assertEquals(1, respuesta.getTotalRegistrosValidos());
+        assertEquals("NAC. DANIEL A. CARRION", ipress.getNombreIpress());
+        verify(ipressRepository, never()).save(any(Ipress.class));
+        verify(registroRepository).saveAll(any());
+    }
+
     private ResumenCargaExcelDTO cargarCsvReal(String columnaDiasCama, String filas) {
-        // Lectura, columnas, unidades, reglas y consolidacion reales; BD y modelo simulados.
-        ReflectionTestUtils.setField(service, "lectorArchivo", new LectorArchivoHospitalario());
-        ReflectionTestUtils.setField(service, "detectorFormato", new DetectorFormatoHospitalario());
-        ReflectionTestUtils.setField(service, "transformadorD1", new TransformadorD1());
-        ReflectionTestUtils.setField(service, "consolidador", new ConsolidadorRegistrosHospitalarios());
+        return cargarCsvReal(columnaDiasCama, filas, "IPRESS PRUEBA", "III-1", "LIMA");
+    }
+
+    private ResumenCargaExcelDTO cargarCsvReal(String columnaDiasCama, String filas,
+                                               String razonSocial, String categoria, String departamento) {
+        usarEtapasReales();
         String cabecera = "anio,mes,codigo_ipress,id_hospitalizacion,servicio_hospitalario,"
                 + "nro_total_hospit_ing,nro_total_hospit_egr,nro_total_estancias,"
                 + "nro_total_pacientes_camas,nro_total_camas," + columnaDiasCama
                 + ",nro_total_fallecidos,ubigeo,departamento,provincia,distrito,sector,categoria,razon_soc\n";
         String filasCompletas = filas.lines().filter(linea -> !linea.isBlank())
-                .map(linea -> linea + ",150101,LIMA,LIMA,LIMA,MINSA,III-1,IPRESS PRUEBA")
+                .map(linea -> linea + "," + ("LIMA".equals(departamento) ? "150101" : "080101")
+                        + "," + departamento + "," + departamento + "," + departamento + ",MINSA,"
+                        + categoria + "," + razonSocial)
                 .collect(java.util.stream.Collectors.joining("\n"));
         MockMultipartFile archivo = new MockMultipartFile("archivo", "nuevo.csv", "text/csv",
                 (cabecera + filasCompletas).getBytes(StandardCharsets.UTF_8));
         return service.cargarValidarYProcesarExcel(archivo, 7L, 9L, "usuario@prueba.pe");
+    }
+
+    private void usarEtapasReales() {
+        // Lectura, columnas, unidades, reglas y consolidacion reales; BD y modelo simulados.
+        ReflectionTestUtils.setField(service, "lectorArchivo", new LectorArchivoHospitalario());
+        ReflectionTestUtils.setField(service, "detectorFormato", new DetectorFormatoHospitalario());
+        ReflectionTestUtils.setField(service, "transformadorD1", new TransformadorD1());
+        ReflectionTestUtils.setField(service, "transformadorInterno", new TransformadorFormatoInterno());
+        ReflectionTestUtils.setField(service, "consolidador", new ConsolidadorRegistrosHospitalarios());
     }
 
     private RegistroHospitalarioImportado registro(

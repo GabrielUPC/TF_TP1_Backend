@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.util.ReflectionTestUtils;
 import pe.edu.upc.tf_tp1_backend.Entities.ArchivoCargado;
+import pe.edu.upc.tf_tp1_backend.Entities.Ipress;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IArchivoCargadoInterfaces;
 import tools.jackson.databind.ObjectMapper;
 
@@ -41,5 +42,30 @@ class ArchivoCargadoControllerTest {
         assertEquals(null, respuesta.get(1).getFechaCargaUtc());
         String json = new ObjectMapper().writeValueAsString(respuesta);
         assertTrue(json.contains("\"fechaCargaUtc\":\"2026-11-01T19:37:00Z\""));
+    }
+
+    @Test
+    void archivosAntiguosMuestranElNombreMaestroDeSuIpress() {
+        ArchivoCargadoController controller = new ArchivoCargadoController();
+        IArchivoCargadoInterfaces service = mock(IArchivoCargadoInterfaces.class);
+        Authentication authentication = mock(Authentication.class);
+        ReflectionTestUtils.setField(controller, "archivoService", service);
+        when(authentication.getName()).thenReturn("admision@correo.pe");
+
+        Ipress ipress = new Ipress();
+        ipress.setNombreIpress("NAC. DANIEL A. CARRION");
+        ArchivoCargado antiguo = new ArchivoCargado();
+        antiguo.setIdArchivo(35L);
+        antiguo.setIpress(ipress);
+        ArchivoCargado nuevo = new ArchivoCargado();
+        nuevo.setIdArchivo(86L);
+        nuevo.setIpress(ipress);
+        when(service.listarPorUsuarioAutenticado("admision@correo.pe"))
+                .thenReturn(List.of(antiguo, nuevo));
+
+        var historial = controller.listar(authentication);
+
+        assertEquals("NAC. DANIEL A. CARRION", historial.get(0).getNombreIpress());
+        assertEquals("NAC. DANIEL A. CARRION", historial.get(1).getNombreIpress());
     }
 }
