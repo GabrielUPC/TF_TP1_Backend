@@ -47,6 +47,26 @@ class ConsolidadorRegistrosHospitalariosTest {
         assertEquals("MEDICINA", resultado.get(1).getServicioHospitalario());
     }
 
+    @Test
+    void consolidaVariantesSinDuplicarCamasYSeparaOtraIpress() {
+        RegistroHospitalarioImportado primero = registro(10, 8, 100, 2800);
+        primero.setServicioHospitalario("HOSPITALIZACIÓN GENERAL");
+        RegistroHospitalarioImportado segundo = registro(5, 4, 100, 2800);
+        segundo.setServicioHospitalario(" hospitalizacion  general ");
+        RegistroHospitalarioImportado ajeno = registro(7, 6, 80, 2400);
+        ajeno.setCodigoIpress("00009999");
+
+        List<RegistroHospitalarioImportado> resultado =
+                new ConsolidadorRegistrosHospitalarios().consolidar(
+                        List.of(primero, segundo, ajeno), new ArrayList<>());
+
+        assertEquals(2, resultado.size());
+        assertEquals(15, resultado.get(0).getIngresos());
+        assertEquals(100, resultado.get(0).getCamasTotales());
+        assertEquals(2800, resultado.get(0).getTotalCamasDisponibles());
+        assertEquals("00009999", resultado.get(1).getCodigoIpress());
+    }
+
     private RegistroHospitalarioImportado registro(
             int ingresos,
             int egresos,

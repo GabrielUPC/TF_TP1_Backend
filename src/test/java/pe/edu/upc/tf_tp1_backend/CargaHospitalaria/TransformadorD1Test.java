@@ -81,5 +81,7 @@ class TransformadorD1Test {
                 resultado.getRegistros().get(0).getTotalCamasDisponibles()
         );
         assertNull(resultado.getRegistros().get(0).getCamasDisponiblesHabilitadas());
+        assertEquals("HOSPITALIZACIÓN DE MEDICINA MEDICINA INTERNA",
+                resultado.getRegistros().get(0).getServicioHospitalario());
     }
 }

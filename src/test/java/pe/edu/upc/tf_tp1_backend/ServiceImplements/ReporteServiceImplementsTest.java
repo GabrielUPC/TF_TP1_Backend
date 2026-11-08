@@ -79,6 +79,26 @@ class ReporteServiceImplementsTest {
     }
 
     @Test
+    void filtraAmbasVariantesDelServicioSinCruzarIpressNiDuplicarReportes() {
+        Ipress asignada = ipress(1L, "00007636");
+        Ipress ajena = ipress(2L, "00009999");
+        when(usuarioRepository.findByCorreo("hospital@correo.pe"))
+                .thenReturn(Optional.of(usuarioHospitalizacion(asignada)));
+        when(reporteRepository.findAll()).thenReturn(List.of(
+                reporte(1, asignada, 5L, 2025, 6, "HOSPITALIZACIÓN DE MEDICINA", "ALTO"),
+                reporte(2, asignada, 6L, 2025, 6, "hospitalizacion  de medicina", "MEDIO"),
+                reporte(3, ajena, 7L, 2025, 6, "HOSPITALIZACION DE MEDICINA", "ALTO")));
+
+        List<ReporteListDTO> resultado = service.filtrar(
+                "hospital@correo.pe", null, null, null, "Hospitalizacion de Medicina", null);
+
+        assertEquals(2, resultado.size());
+        assertEquals(List.of(1, 2), resultado.stream().map(ReporteListDTO::getIdReporte).sorted().toList());
+        assertEquals(List.of("HOSPITALIZACION DE MEDICINA", "HOSPITALIZACION DE MEDICINA"),
+                resultado.stream().map(ReporteListDTO::getServicioHospitalario).toList());
+    }
+
+    @Test
     void noGeneraReporteParaPrediccionLegacyONoVigente() {
         Ipress ipress = ipress(1L, "00007636");
         when(usuarioRepository.findByCorreo("hospital@correo.pe"))

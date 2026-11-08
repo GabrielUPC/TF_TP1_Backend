@@ -19,7 +19,7 @@ class TransformadorFormatoInternoTest {
                         "codigo_ipress", "00007636",
                         "anio", "2026",
                         "mes", "03",
-                        "servicio_hospitalario", "HOSPITALIZACION GENERAL",
+                        "servicio_hospitalario", " Hospitalización  General ",
                         "ingresos", "80",
                         "egresos", "70",
                         "estancias", "350",
@@ -45,5 +45,7 @@ class TransformadorFormatoInternoTest {
                 resultado.getRegistros().get(0).getCamasDisponiblesHabilitadas()
         );
         assertNull(resultado.getRegistros().get(0).getTotalCamasDisponibles());
+        assertEquals("HOSPITALIZACIÓN GENERAL", resultado.getRegistros().get(0).getServicioHospitalario());
+        assertEquals("HOSPITALIZACIÓN GENERAL", resultado.getRegistros().get(0).getIdHospitalizacion());
     }
 }

@@ -62,8 +62,10 @@ public class PrediccionBinariaAutomaticaService {
         List<RegistroHospitalario> ventana = obtenerVentana(ipress, servicio, actual, true);
 
         ModeloPrediccionRequestDTO solicitud = new ModeloPrediccionRequestDTO();
-        solicitud.setRegistroActual(convertir(ventana.get(5)));
-        solicitud.setHistorialUltimosMeses(ventana.subList(0, 5).stream().map(this::convertir).toList());
+        String nombreModelo = NormalizacionPredictiva.texto(ventana.get(5).getServicioHospitalario());
+        solicitud.setRegistroActual(convertir(ventana.get(5), nombreModelo));
+        solicitud.setHistorialUltimosMeses(ventana.subList(0, 5).stream()
+                .map(r -> convertir(r, nombreModelo)).toList());
 
         ModeloPrediccionBinariaResponseDTO respuesta = modeloClient.predecirBinario(solicitud);
         validarTrazabilidad(respuesta, ipress.getCodigoRenipress(), servicio, actual);
@@ -80,8 +82,8 @@ public class PrediccionBinariaAutomaticaService {
         Ipress ipress = usuario.getIpress();
         List<RegistroHospitalario> todos = registroRepository.buscarPorIpress(ipress.getIdIpress());
         Map<String, List<RegistroHospitalario>> porServicio = todos.stream()
-                .filter(r -> !NormalizacionPredictiva.texto(r.getServicioHospitalario()).isBlank())
-                .collect(Collectors.groupingBy(r -> NormalizacionPredictiva.texto(r.getServicioHospitalario())));
+                .filter(r -> !NormalizacionPredictiva.servicioClave(r.getServicioHospitalario()).isBlank())
+                .collect(Collectors.groupingBy(r -> NormalizacionPredictiva.servicioClave(r.getServicioHospitalario())));
 
         List<CatalogoPrediccionBinariaDTO.ServicioPrediccionDTO> servicios = porServicio.entrySet().stream()
                 .map(e -> new CatalogoPrediccionBinariaDTO.ServicioPrediccionDTO(
@@ -126,10 +128,10 @@ public class PrediccionBinariaAutomaticaService {
             List<RegistroHospitalario> fuente,
             boolean distinguirServicio
     ) {
-        String servicio = NormalizacionPredictiva.texto(servicioSolicitado);
+        String servicio = NormalizacionPredictiva.servicioClave(servicioSolicitado);
         YearMonth desde = actual.minusMonths(5);
         List<RegistroHospitalario> delServicio = fuente.stream()
-                .filter(r -> servicio.equals(NormalizacionPredictiva.texto(r.getServicioHospitalario())))
+                .filter(r -> servicio.equals(NormalizacionPredictiva.servicioClave(r.getServicioHospitalario())))
                 .toList();
         if (delServicio.isEmpty() && distinguirServicio) {
             throw error(HttpStatus.NOT_FOUND, "SERVICIO_NO_EXISTE",
@@ -196,7 +198,7 @@ public class PrediccionBinariaAutomaticaService {
 
     private String firmaDatos(RegistroHospitalario r) {
         return List.of(
-                NormalizacionPredictiva.texto(r.getServicioHospitalario()),
+                NormalizacionPredictiva.servicioClave(r.getServicioHospitalario()),
                 NormalizacionPredictiva.texto(r.getIdHospitalizacion()),
                 Objects.toString(r.getIngresos(), ""), Objects.toString(r.getEgresos(), ""),
                 Objects.toString(r.getEstancias(), ""), Objects.toString(r.getPacientesCama(), ""),
@@ -237,14 +239,14 @@ public class PrediccionBinariaAutomaticaService {
         entidad.setVigente(true);
         entidad.setMotivoNoVigente(null);
 
-        String servicio = NormalizacionPredictiva.texto(actual.getServicioHospitalario());
+        String servicio = NormalizacionPredictiva.servicioClave(actual.getServicioHospitalario());
         List<PrediccionRiesgo> anteriores = prediccionRepository
                 .findByIndicadorHospitalario_RegistroHospitalario_ArchivoCargado_Ipress_IdIpress(idIpress);
         List<PrediccionRiesgo> duplicadas = anteriores.stream()
                 .filter(p -> !Objects.equals(p.getIdPrediccion(), entidad.getIdPrediccion()))
                 .filter(p -> MODELO.equals(p.getModeloUtilizado()))
                 .filter(p -> respuesta.getPeriodoPredicho().equals(p.getPeriodoPredicho()))
-                .filter(p -> servicio.equals(NormalizacionPredictiva.texto(
+                .filter(p -> servicio.equals(NormalizacionPredictiva.servicioClave(
                         p.getIndicadorHospitalario().getRegistroHospitalario().getServicioHospitalario())))
                 .toList();
         duplicadas.forEach(p -> {
@@ -255,7 +257,7 @@ public class PrediccionBinariaAutomaticaService {
         return prediccionRepository.save(entidad);
     }
 
-    private ModeloDatosHospitalariosDTO convertir(RegistroHospitalario r) {
+    private ModeloDatosHospitalariosDTO convertir(RegistroHospitalario r, String nombreModelo) {
         Ipress ipress = r.getArchivoCargado().getIpress();
         YearMonth p = periodo(r);
         ModeloDatosHospitalariosDTO d = new ModeloDatosHospitalariosDTO();
@@ -269,7 +271,7 @@ public class PrediccionBinariaAutomaticaService {
         d.setCategoriaIpress(textoBase(ipress.getCategoriaIpress(), "categoria_ipress"));
         d.setCodigoIpress(NormalizacionPredictiva.renipress(ipress.getCodigoRenipress()));
         d.setIdHospitalizacion(textoBase(r.getIdHospitalizacion(), "id_hospitalizacion"));
-        d.setServicioHospitalizacion(textoBase(r.getServicioHospitalario(), "servicio_hospitalizacion"));
+        d.setServicioHospitalizacion(nombreModelo);
         d.setTotalIngresos(numeroBase(r.getIngresos(), "ingresos"));
         d.setTotalEgresos(numeroBase(r.getEgresos(), "egresos"));
         d.setTotalEstancias(numeroBase(r.getEstancias(), "estancias"));
@@ -288,8 +290,8 @@ public class PrediccionBinariaAutomaticaService {
     ) {
         if (r == null
                 || !NormalizacionPredictiva.renipress(codigo).equals(r.getCodigoIpress())
-                || !NormalizacionPredictiva.texto(servicio).equals(
-                        NormalizacionPredictiva.texto(r.getServicioHospitalizacion()))
+                || !NormalizacionPredictiva.servicioClave(servicio).equals(
+                        NormalizacionPredictiva.servicioClave(r.getServicioHospitalizacion()))
                 || !actual.toString().equals(r.getPeriodoActual())
                 || !actual.plusMonths(1).toString().equals(r.getPeriodoPredicho())
                 || !MODELO.equals(r.getModelo())) {

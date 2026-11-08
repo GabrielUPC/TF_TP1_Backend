@@ -60,13 +60,13 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
     public List<DashboardDetalleDTO> filtrar(
             String correo, Long idArchivo, Integer anio, Integer mes, String servicio
     ) {
-        String canonico = servicio == null ? "" : NormalizacionPredictiva.texto(servicio);
+        String canonico = NormalizacionPredictiva.servicioClave(servicio);
         return detallePermitido(correo).stream()
                 .filter(d -> idArchivo == null || idArchivo.equals(d.getIdArchivo()))
                 .filter(d -> anio == null || anio.equals(d.getAnio()))
                 .filter(d -> mes == null || mes.equals(d.getMes()))
                 .filter(d -> canonico.isBlank() || canonico.equals(
-                        NormalizacionPredictiva.texto(d.getServicioHospitalario())))
+                        NormalizacionPredictiva.servicioClave(d.getServicioHospitalario())))
                 .toList();
     }
 
@@ -76,7 +76,7 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         obtenerDetalleGeneral(correo, idArchivo).stream()
                 .filter(d -> Boolean.TRUE.equals(d.getAlertaAltaPresion()))
                 .forEach(d -> unicas.put(
-                        NormalizacionPredictiva.texto(d.getServicioHospitalario()) + "|"
+                        NormalizacionPredictiva.servicioClave(d.getServicioHospitalario()) + "|"
                                 + d.getPeriodoPredicho() + "|" + d.getModeloUtilizado(), d));
         return List.copyOf(unicas.values());
     }
@@ -102,7 +102,7 @@ public class DashboardServiceImplements implements IDashboardInterfaces {
         d.setIdIndicador(i.getIdIndicador()); d.setIdRegistro(r.getIdRegistro());
         d.setIdArchivo(a.getIdArchivo()); d.setNombreArchivo(a.getNombreArchivo());
         d.setAnio(r.getAnio()); d.setMes(r.getMes());
-        d.setServicioHospitalario(r.getServicioHospitalario());
+        d.setServicioHospitalario(NormalizacionPredictiva.servicioClave(r.getServicioHospitalario()));
         d.setCodigoIpress(a.getIpress().getCodigoRenipress());
         d.setIngresos(r.getIngresos()); d.setEgresos(r.getEgresos());
         d.setEstancias(r.getEstancias()); d.setPacientesCama(r.getPacientesCama());

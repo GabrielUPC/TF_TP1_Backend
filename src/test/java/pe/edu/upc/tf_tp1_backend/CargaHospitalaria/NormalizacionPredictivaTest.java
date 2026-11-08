@@ -1,6 +1,7 @@
 package pe.edu.upc.tf_tp1_backend.CargaHospitalaria;
 
 import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class NormalizacionPredictivaTest {
@@ -16,5 +17,16 @@ class NormalizacionPredictivaTest {
         assertTrue(NormalizacionPredictiva.servicioEnAlcance(" 241800 "));
         assertTrue(NormalizacionPredictiva.servicioEnAlcance("250100"));
         assertFalse(NormalizacionPredictiva.servicioEnAlcance("230100"));
+    }
+
+    @Test
+    void unificaTildesMayusculasEspaciosYUnicodeDescompuestoSoloEnServicios() {
+        String esperado = "HOSPITALIZACION DE MEDICINA NEUMOLOGIA";
+        assertEquals(esperado, NormalizacionPredictiva.servicioClave(
+                "  Hospitalización   de Medicina Neumología  "));
+        assertEquals(esperado, NormalizacionPredictiva.servicioClave(
+                "HOSPITALIZACION DE MEDICINA NEUMOLOGI\u0301A"));
+        assertEquals("HOSPITALIZACIÓN", NormalizacionPredictiva.texto("hospitalización"));
+        assertEquals("NIÑOS", NormalizacionPredictiva.servicioClave("Niños"));
     }
 }

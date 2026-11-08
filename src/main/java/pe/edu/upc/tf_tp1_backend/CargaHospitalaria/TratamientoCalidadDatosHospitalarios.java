@@ -61,12 +61,12 @@ public class TratamientoCalidadDatosHospitalarios {
 
     private HallazgoCalidadImportado hallazgo(RegistroHospitalarioImportado r, String regla, String descripcion) {
         return new HallazgoCalidadImportado(r.getNumeroFila(), r.getCodigoIpress(), r.getAnio(), r.getMes(),
-                normalizar(r.getServicioHospitalario()), regla, descripcion);
+                NormalizacionPredictiva.servicioClave(r.getServicioHospitalario()), regla, descripcion);
     }
 
     private String clave(RegistroHospitalarioImportado r) {
         return normalizar(r.getCodigoIpress()) + "|" + r.getAnio() + "|" + r.getMes()
-                + "|" + normalizar(r.getServicioHospitalario());
+                + "|" + NormalizacionPredictiva.servicioClave(r.getServicioHospitalario());
     }
 
     private String normalizar(String valor) {

@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import pe.edu.upc.tf_tp1_backend.DTOS.ReporteDTO;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.NormalizacionPredictiva;
 import pe.edu.upc.tf_tp1_backend.DTOS.ReporteListDTO;
 import pe.edu.upc.tf_tp1_backend.Entities.ArchivoCargado;
 import pe.edu.upc.tf_tp1_backend.Entities.IndicadorHospitalario;
@@ -401,7 +402,7 @@ public class ReporteServiceImplements implements IReporteInterfaces {
                     dto.setAnio(registro.getAnio());
                     dto.setMes(registro.getMes());
                     completarPeriodoPredicho(dto, registro);
-                    dto.setServicioHospitalario(registro.getServicioHospitalario());
+                    dto.setServicioHospitalario(NormalizacionPredictiva.servicioClave(registro.getServicioHospitalario()));
 
                     ArchivoCargado archivo = registro.getArchivoCargado();
 
@@ -475,9 +476,8 @@ public class ReporteServiceImplements implements IReporteInterfaces {
         RegistroHospitalario registro = obtenerRegistro(reporte);
         return registro != null
                 && registro.getServicioHospitalario() != null
-                && registro.getServicioHospitalario().equalsIgnoreCase(
-                        servicioHospitalario.trim()
-                );
+                && NormalizacionPredictiva.servicioClave(registro.getServicioHospitalario())
+                        .equals(NormalizacionPredictiva.servicioClave(servicioHospitalario));
     }
 
     private boolean cumpleFiltroRiesgo(

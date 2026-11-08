@@ -1,5 +1,6 @@
 package pe.edu.upc.tf_tp1_backend.CargaHospitalaria;
 
+import java.text.Normalizer;
 import java.util.Locale;
 
 /** Normalización compatible con src.datos_raw.limpiar_texto del modelo. */
@@ -8,6 +9,13 @@ public final class NormalizacionPredictiva {
 
     public static String texto(String valor) {
         return valor == null ? "" : valor.trim().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
+    }
+
+    public static String servicioClave(String valor) {
+        // Conserva la tilde de la ene para no fusionar nombres distintos.
+        String sinAcentosVocalicos = Normalizer.normalize(texto(valor), Normalizer.Form.NFD)
+                .replaceAll("[\\u0300\\u0301\\u0302\\u0308]", "");
+        return Normalizer.normalize(sinAcentosVocalicos, Normalizer.Form.NFC);
     }
 
     public static String renipress(String valor) {

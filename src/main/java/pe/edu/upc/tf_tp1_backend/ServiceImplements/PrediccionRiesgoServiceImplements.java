@@ -13,6 +13,7 @@ import pe.edu.upc.tf_tp1_backend.Entities.RegistroHospitalario;
 import pe.edu.upc.tf_tp1_backend.Repositories.IPrediccionRiesgoRepository;
 import pe.edu.upc.tf_tp1_backend.ServiceInterfaces.IPrediccionRiesgoInterfaces;
 import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.HallazgoCalidadImportado;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.NormalizacionPredictiva;
 
 import java.time.YearMonth;
 import java.util.List;
@@ -171,8 +172,8 @@ public class PrediccionRiesgoServiceImplements implements IPrediccionRiesgoInter
         YearMonth actual = obtenerPeriodo(r);
         return pendientes.stream().anyMatch(h -> {
             if (!normalizar(h.codigoIpress()).equals(normalizar(codigo))
-                    || !normalizar(h.servicioHospitalario()).equals(
-                            normalizar(r.getServicioHospitalario()))) return false;
+                    || !NormalizacionPredictiva.servicioClave(h.servicioHospitalario()).equals(
+                            NormalizacionPredictiva.servicioClave(r.getServicioHospitalario()))) return false;
             YearMonth pendiente = YearMonth.of(h.anio(), h.mes());
             return !pendiente.isBefore(actual.minusMonths(5))
                     && !pendiente.isAfter(actual.plusMonths(1));

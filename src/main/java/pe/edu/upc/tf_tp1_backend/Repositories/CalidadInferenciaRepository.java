@@ -2,6 +2,7 @@ package pe.edu.upc.tf_tp1_backend.Repositories;
 
 import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Repository;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.NormalizacionPredictiva;
 
 import java.time.YearMonth;
 
@@ -26,21 +27,22 @@ public class CalidadInferenciaRepository {
             YearMonth desde,
             YearMonth hasta
     ) {
-        String jpql = "select count(e) from " + entidad + " e "
+        String jpql = "select e.servicioHospitalario from " + entidad + " e "
                 + "join e.archivoCargado a join a.ipress i "
                 + "where i.idIpress = :idIpress "
-                + "and e.servicioHospitalario = :servicio "
                 + "and (e.anio > :anioDesde or (e.anio = :anioDesde and e.mes >= :mesDesde)) "
                 + "and (e.anio < :anioHasta or (e.anio = :anioHasta and e.mes <= :mesHasta)) "
                 + "and e.estado = :estado";
-        return entityManager.createQuery(jpql, Long.class)
+        return entityManager.createQuery(jpql, String.class)
                 .setParameter("idIpress", idIpress)
-                .setParameter("servicio", servicio)
                 .setParameter("anioDesde", desde.getYear())
                 .setParameter("mesDesde", desde.getMonthValue())
                 .setParameter("anioHasta", hasta.getYear())
                 .setParameter("mesHasta", hasta.getMonthValue())
                 .setParameter("estado", ESTADO_PENDIENTE)
-                .getSingleResult();
+                .getResultStream()
+                .filter(nombre -> NormalizacionPredictiva.servicioClave(nombre)
+                        .equals(NormalizacionPredictiva.servicioClave(servicio)))
+                .count();
     }
 }

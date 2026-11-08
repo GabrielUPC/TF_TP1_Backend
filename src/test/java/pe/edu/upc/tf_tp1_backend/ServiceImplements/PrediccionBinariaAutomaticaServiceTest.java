@@ -129,6 +129,54 @@ class PrediccionBinariaAutomaticaServiceTest {
     }
 
     @Test
+    void catalogoYVentanaUnificanVariantesSinRepetirServicioNiMes() {
+        List<RegistroHospitalario> mezcla = ventana();
+        for (int i = 0; i < mezcla.size(); i++) {
+            mezcla.get(i).setServicioHospitalario(i % 2 == 0
+                    ? "hospitalizacion  de medicina" : "HOSPITALIZACIÓN DE MEDICINA");
+        }
+        when(registros.buscarPorIpress(10L)).thenReturn(mezcla);
+        ModeloPrediccionBinariaResponseDTO respuesta = respuesta();
+        respuesta.setServicioHospitalizacion("HOSPITALIZACIÓN DE MEDICINA");
+        when(modelo.predecirBinario(any())).thenReturn(respuesta);
+        PrediccionBinariaAutomaticaRequestDTO solicitud = new PrediccionBinariaAutomaticaRequestDTO();
+        solicitud.setServicio("Hospitalización de Medicina");
+        solicitud.setPeriodoActual("2025-06");
+
+        CatalogoPrediccionBinariaDTO catalogo = servicio.catalogo("hospital@prueba.pe");
+        assertEquals(1, catalogo.getServicios().size());
+        assertEquals("HOSPITALIZACION DE MEDICINA", catalogo.getServicios().get(0).getServicio());
+        assertEquals(List.of("2025-06"), catalogo.getServicios().get(0).getPeriodosDisponibles());
+
+        servicio.predecir(solicitud, "hospital@prueba.pe");
+        ArgumentCaptor<ModeloPrediccionRequestDTO> enviado =
+                ArgumentCaptor.forClass(ModeloPrediccionRequestDTO.class);
+        verify(modelo).predecirBinario(enviado.capture());
+        assertEquals("HOSPITALIZACIÓN DE MEDICINA",
+                enviado.getValue().getRegistroActual().getServicioHospitalizacion());
+        assertTrue(enviado.getValue().getHistorialUltimosMeses().stream().allMatch(r ->
+                "HOSPITALIZACIÓN DE MEDICINA".equals(r.getServicioHospitalizacion())));
+        verify(calidad, atLeastOnce()).existePendiente(eq(10L),
+                eq("HOSPITALIZACION DE MEDICINA"), any(), any());
+    }
+
+    @Test
+    void calidadPendienteBloqueaVentanaConNombresEquivalentes() {
+        List<RegistroHospitalario> mezcla = ventana();
+        mezcla.get(0).setServicioHospitalario("HOSPITALIZACIÓN DE MEDICINA");
+        mezcla.get(1).setServicioHospitalario("HOSPITALIZACION DE MEDICINA");
+        when(registros.buscarPorIpress(10L)).thenReturn(mezcla);
+        when(calidad.existePendiente(eq(10L), eq("HOSPITALIZACION DE MEDICINA"), any(), any()))
+                .thenReturn(true);
+        PrediccionBinariaAutomaticaRequestDTO solicitud = new PrediccionBinariaAutomaticaRequestDTO();
+        solicitud.setServicio("Hospitalización de Medicina");
+        solicitud.setPeriodoActual("2025-06");
+
+        assertCodigo("CALIDAD_PENDIENTE", () -> servicio.predecir(solicitud, "hospital@prueba.pe"));
+        verifyNoInteractions(modelo);
+    }
+
+    @Test
     void servicioFueraDe24y25SeRechaza() {
         List<RegistroHospitalario> v = ventana(); v.forEach(r -> r.setIdHospitalizacion("220100"));
         when(registros.buscarPorIpress(10L)).thenReturn(v);

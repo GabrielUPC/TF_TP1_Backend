@@ -24,6 +24,20 @@ class TratamientoCalidadDatosHospitalariosTest {
         assertEquals("Q06",r.hallazgos().get(0).regla());
     }
 
+    @Test void q06BloqueaTodoElGrupoConYSinTildesPeroNoOtraIpress() {
+        RegistroHospitalarioImportado valido = registro(1, "HOSPITALIZACION DE MEDICINA", 10, 10, 310);
+        RegistroHospitalarioImportado q06 = registro(2, "Hospitalización de Medicina", 1, 10, 0);
+        RegistroHospitalarioImportado ajeno = registro(3, "HOSPITALIZACION DE MEDICINA", 10, 10, 310);
+        ajeno.setCodigoIpress("0002");
+
+        ResultadoTratamientoCalidad resultado = tratamiento.aplicar(List.of(valido, q06, ajeno));
+
+        assertEquals(List.of(ajeno), resultado.registrosValidos());
+        assertEquals(List.of(valido, q06), resultado.registrosPendientes());
+        assertEquals(1, resultado.gruposPendientes());
+        assertEquals("Q06", resultado.hallazgos().get(0).regla());
+    }
+
     @Test void ceroSinActividadNoActivaLasReglas() {
         ResultadoTratamientoCalidad r=tratamiento.aplicar(List.of(registro(5,"MEDICINA",0,0,0)));
         assertEquals(1,r.registrosValidos().size()); assertTrue(r.hallazgos().isEmpty());

@@ -61,9 +61,7 @@ public class ConsolidadorRegistrosHospitalarios {
         )
                 + "|" + registro.getAnio()
                 + "|" + registro.getMes()
-                + "|" + TransformacionHospitalariaUtil.claveNormalizada(
-                        registro.getServicioHospitalario()
-                );
+                + "|" + NormalizacionPredictiva.servicioClave(registro.getServicioHospitalario());
     }
 
     private static class Acumulador {

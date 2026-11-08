@@ -36,6 +36,7 @@ import pe.edu.upc.tf_tp1_backend.Entities.RegistroHospitalario;
 import pe.edu.upc.tf_tp1_backend.Entities.Usuario;
 import pe.edu.upc.tf_tp1_backend.Entities.HallazgoCalidadDatos;
 import pe.edu.upc.tf_tp1_backend.Entities.RegistroPendienteCalidadDatos;
+import pe.edu.upc.tf_tp1_backend.CargaHospitalaria.NormalizacionPredictiva;
 import pe.edu.upc.tf_tp1_backend.Repositories.IArchivoCargadoRepository;
 import pe.edu.upc.tf_tp1_backend.Repositories.IIpressRepository;
 import pe.edu.upc.tf_tp1_backend.Repositories.IRegistroHospitalarioRepository;
@@ -638,12 +639,12 @@ public class ExcelHospitalarioServiceImplements
 
     private String claveHallazgo(HallazgoCalidadImportado hallazgo) {
         return normalizarClave(hallazgo.codigoIpress()) + "|" + hallazgo.anio() + "|"
-                + hallazgo.mes() + "|" + normalizarClave(hallazgo.servicioHospitalario());
+                + hallazgo.mes() + "|" + NormalizacionPredictiva.servicioClave(hallazgo.servicioHospitalario());
     }
 
     private String claveRegistro(RegistroHospitalarioImportado registro) {
         return normalizarClave(registro.getCodigoIpress()) + "|" + registro.getAnio() + "|"
-                + registro.getMes() + "|" + normalizarClave(registro.getServicioHospitalario());
+                + registro.getMes() + "|" + NormalizacionPredictiva.servicioClave(registro.getServicioHospitalario());
     }
 
     private String normalizarClave(String valor) {

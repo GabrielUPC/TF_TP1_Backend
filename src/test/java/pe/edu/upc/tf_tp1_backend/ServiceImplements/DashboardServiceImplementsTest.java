@@ -94,6 +94,17 @@ class DashboardServiceImplementsTest {
         assertEquals(1, servicio.obtenerAlertas("hospital@correo.pe", null).size());
     }
 
+    @Test void filtraVariantesHistoricasDelMismoServicioConEtiquetaUnica() {
+        indicador.getRegistroHospitalario().setServicioHospitalario("HOSPITALIZACIÓN DE MEDICINA");
+        when(predicciones.findByIndicadorHospitalario_IdIndicador(1)).thenReturn(Optional.empty());
+
+        List<DashboardDetalleDTO> resultado = servicio.filtrar(
+                "hospital@correo.pe", null, 2025, 6, "hospitalizacion de medicina");
+
+        assertEquals(1, resultado.size());
+        assertEquals("HOSPITALIZACION DE MEDICINA", resultado.get(0).getServicioHospitalario());
+    }
+
     private IndicadorHospitalario indicador(Ipress ipress) {
         ArchivoCargado a = new ArchivoCargado(); a.setIdArchivo(5L); a.setNombreArchivo("D1.csv"); a.setIpress(ipress);
         RegistroHospitalario r = new RegistroHospitalario(); r.setIdRegistro(1); r.setArchivoCargado(a);
