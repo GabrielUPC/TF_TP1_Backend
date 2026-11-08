@@ -1,6 +1,11 @@
 name: Deploy CP035 backend image - rama2
 
 on:
+  push:
+    branches:
+      - rama2
+    paths:
+      - '.github/workflows/deploy-cp035-backend-rama2.yml'
   workflow_dispatch:
 
 permissions:
