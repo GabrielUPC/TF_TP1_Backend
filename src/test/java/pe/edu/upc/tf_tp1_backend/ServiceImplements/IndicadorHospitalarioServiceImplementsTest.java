@@ -143,9 +143,31 @@ class IndicadorHospitalarioServiceImplementsTest {
     }
 
     @Test
-    void egresosCeroProducePromedioEstanciaNoCalculable() {
+    void cp040EgresosCeroConEstanciasValidasProducePromedioEstanciaCero() {
         RegistroHospitalario registro = crearRegistro(9);
-        registro.setEstancias(25);
+        registro.setServicioHospitalario("PEDIATRIA");
+        registro.setAnio(2030);
+        registro.setMes(8);
+        registro.setIngresos(10);
+        registro.setEgresos(0);
+        registro.setEstancias(640);
+        registro.setPacientesCama(300);
+        registro.setCamasTotales(24);
+        registro.setTotalCamasDisponibles(720);
+
+        IndicadorHospitalario indicador = calcularIndicador(registro);
+        assertEquals(0.0, indicador.getPromedioEstancia());
+        assertEquals(0.42, indicador.getOcupacionEstimada());
+        assertEquals(0.42, indicador.getPresionIngresosCamas());
+        assertEquals(0.0, indicador.getRotacionCamas());
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(ints = {-1})
+    void egresosCeroNoConvierteEstanciasFaltantesONegativasEnCero(Integer estancias) {
+        RegistroHospitalario registro = crearRegistro(11);
+        registro.setEstancias(estancias);
         registro.setEgresos(0);
 
         assertNull(calcularIndicador(registro).getPromedioEstancia());

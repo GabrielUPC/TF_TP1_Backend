@@ -133,10 +133,13 @@ public class IndicadorHospitalarioServiceImplements implements IIndicadorHospita
                 registro.getCamasTotales()
         );
 
-        Double promedioEstancia = dividirNullable(
-                registro.getEstancias(),
-                registro.getEgresos()
-        );
+        Double promedioEstancia;
+        if (registro.getEgresos() != null && registro.getEgresos() == 0
+                && registro.getEstancias() != null && registro.getEstancias() >= 0) {
+            promedioEstancia = 0.0;
+        } else {
+            promedioEstancia = dividirNullable(registro.getEstancias(), registro.getEgresos());
+        }
 
         Double rotacionCamas = dividirConCeroDefensivo(
                 registro.getEgresos(),
