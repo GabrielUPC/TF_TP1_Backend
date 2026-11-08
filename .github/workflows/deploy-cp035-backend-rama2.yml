@@ -1,0 +1,114 @@
+name: Deploy CP035 backend image - rama2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ipress-backend-rama2-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/rama2' && vars.CP035_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: ipress-backend-rama2-production
+    env:
+      SUBSCRIPTION_ID: 783afc3b-eb4f-4b55-b1fd-a3938fe533ab
+      RESOURCE_GROUP: rg-ipress-rama2
+      APP_NAME: ipress-backend-rama2
+      PREVIOUS_IMAGE: ghcr.io/gabrielupc/ipress-backend-rama2:658a53545baaaa65d7e9786977730a5b909c2076
+      TARGET_IMAGE: ghcr.io/gabrielupc/ipress-backend-rama2:77b8a1f3540f83b74f7f6d09e575320c74a2a59d
+    steps:
+      - name: Check OIDC configuration
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+        run: |
+          test -n "$AZURE_CLIENT_ID"
+          test -n "$AZURE_TENANT_ID"
+
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: 783afc3b-eb4f-4b55-b1fd-a3938fe533ab
+
+      - name: Verify target and previous image
+        id: preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$SUBSCRIPTION_ID"
+          az extension add --name containerapp --only-show-errors --yes
+          az containerapp show --subscription "$SUBSCRIPTION_ID" \
+            --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" -o json > "$RUNNER_TEMP/app-before.json"
+          current=$(jq -r '.properties.template.containers[] | select(.name == "ipress-backend") | .image' "$RUNNER_TEMP/app-before.json")
+          revision=$(jq -r '.properties.latestRevisionName' "$RUNNER_TEMP/app-before.json")
+          mode=$(jq -r '.properties.configuration.activeRevisionsMode' "$RUNNER_TEMP/app-before.json")
+          traffic=$(jq -r --arg revision "$revision" \
+            '[.properties.configuration.ingress.traffic[]? | select(.revisionName == $revision or .latestRevision == true) | .weight] | add // 0' \
+            "$RUNNER_TEMP/app-before.json")
+          echo "Previous revision: $revision; traffic: $traffic%"
+          test "$current" = "$PREVIOUS_IMAGE"
+          test "$mode" = "Single"
+          test "$revision" = "ipress-backend-rama2--0000041"
+          test "$traffic" = "100"
+          echo "previous_revision=$revision" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy only the pinned image
+        shell: bash
+        run: |
+          set -euo pipefail
+          az containerapp update --subscription "$SUBSCRIPTION_ID" \
+            --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" \
+            --image "$TARGET_IMAGE" --only-show-errors -o none
+
+      - name: Verify new revision and traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in {1..30}; do
+            az containerapp show --subscription "$SUBSCRIPTION_ID" \
+              --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" -o json > "$RUNNER_TEMP/app-after.json"
+            revision=$(jq -r '.properties.latestRevisionName' "$RUNNER_TEMP/app-after.json")
+            image=$(jq -r '.properties.template.containers[] | select(.name == "ipress-backend") | .image' "$RUNNER_TEMP/app-after.json")
+            traffic=$(jq -r --arg revision "$revision" \
+              '[.properties.configuration.ingress.traffic[]? | select(.revisionName == $revision or .latestRevision == true) | .weight] | add // 0' \
+              "$RUNNER_TEMP/app-after.json")
+            test "$image" = "$TARGET_IMAGE"
+            test "$revision" != "${{ steps.preflight.outputs.previous_revision }}"
+            az containerapp revision show --subscription "$SUBSCRIPTION_ID" \
+              --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" \
+              --revision "$revision" -o json > "$RUNNER_TEMP/revision.json"
+            state=$(jq -r '.properties.provisioningState' "$RUNNER_TEMP/revision.json")
+            health=$(jq -r '.properties.healthState' "$RUNNER_TEMP/revision.json")
+            running=$(jq -r '.properties.runningState' "$RUNNER_TEMP/revision.json")
+            if [[ "$state" == "Provisioned" && "$health" == "Healthy" && "$running" == Running* && "$traffic" == "100" ]]; then
+              for field in \
+                '(.properties.template.containers[] | select(.name == "ipress-backend") | .env)' \
+                '((.properties.configuration.secrets // []) | map(.name))' \
+                '.properties.configuration.registries' \
+                '(.properties.configuration.ingress | del(.traffic))' \
+                '.identity'; do
+                before=$(jq -cS "$field" "$RUNNER_TEMP/app-before.json")
+                after=$(jq -cS "$field" "$RUNNER_TEMP/app-after.json")
+                test "$before" = "$after" || { echo "A non-image configuration field changed" >&2; exit 1; }
+              done
+              fqdn=$(jq -r '.properties.configuration.ingress.fqdn' "$RUNNER_TEMP/app-after.json")
+              test -n "$fqdn" && test "$fqdn" != null
+              curl --fail --silent --show-error --max-time 20 -o /dev/null \
+                -X OPTIONS "https://$fqdn/login" \
+                -H 'Origin: https://agreeable-beach-0a652b50f.6.azurestaticapps.net' \
+                -H 'Access-Control-Request-Method: POST'
+              echo "Deployed revision: $revision; image: $image; traffic: $traffic%; health: $health"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "The new revision did not become healthy with 100% traffic" >&2
+          exit 1
